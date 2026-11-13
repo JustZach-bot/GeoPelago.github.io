@@ -18,7 +18,9 @@ h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 #view{position:fixed;inset:48px 0 0 0;background:#000}
 #pano{position:absolute;inset:0}
-#hud{position:absolute;top:10px;left:10px;z-index:900;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+#topleft{position:absolute;top:10px;left:10px;z-index:900;display:flex;gap:10px;align-items:flex-start}
+#compass{display:none;width:92px;height:92px;flex:none;filter:drop-shadow(0 2px 6px #0008)}
+#hud{position:static;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
 #hud b{display:block;font-size:15px;margin-bottom:6px}
 .row{display:flex;justify-content:space-between;gap:14px;line-height:1.6}
 .bar{height:4px;background:#0006;border-radius:2px;margin-bottom:3px}.bar i{display:block;height:100%;background:var(--flag);border-radius:2px}
@@ -56,7 +58,7 @@ small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #start{position:absolute;inset:0;z-index:850;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
 #start h2{font-size:32px;margin:0}
 code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
-@media(max-width:600px){#hud{min-width:0;font-size:12px}#gwrap{width:200px;height:150px}}
+@media(max-width:600px){#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
 </style>
 </head>
 <body>
@@ -69,10 +71,13 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
 
 <div id="view">
   <div id="pano"></div>
+  <div id="topleft">
   <div id="hud">
-    <b id="roundLbl">Round 0</b>
+    <b id="roundLbl">Checks</b>
     <div id="prog"></div>
     <details><summary id="cSum">Countries</summary><div id="clist"></div></details>
+  </div>
+  <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
   </div>
   <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
   <div id="dim"></div>
@@ -152,7 +157,7 @@ function handle(m,c){
       S.items={};for(const[n,i]of Object.entries(g.item_name_to_id))S.items[i]=n;
       S.loc=g.location_name_to_id;S.locName={};for(const[n,i]of Object.entries(S.loc))S.locName[i]=n;
       S.connectSent=true;
-      send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:5,class:'Version'},items_handling:7,tags:[],slot_data:true});
+      send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:1,class:'Version'},items_handling:7,tags:[],slot_data:true});
       break}
     case 'Connected':{
       S.slot=m.slot;S.slots=m.slot_info||{};S.players=m.players||[];
@@ -212,7 +217,6 @@ function checkGoal(){
 }
 function render(){
   styleLocks();
-  $('#roundLbl').textContent='Round '+S.round;
   let h='';
   BR.forEach(b=>{const n=countDone(i=>ptsName(b.k,i),PTS_N);h+=`<div class="row"><span>${b.k} pts</span><span>${n}/${PTS_N}</span></div><div class="bar"><i style="width:${n/PTS_N*100}%"></i></div>`});
   const cn=countDone(ctryName,CTRY_N);
@@ -336,11 +340,22 @@ function loadGoogle(key){return new Promise((res,rej)=>{
   window.gm_authFailure=()=>toast('Google Maps rejected the API key.');
   const s=document.createElement('script');s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
   s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+// Compass: the dial turns opposite to the view so N always points at true north.
+function buildCompass(){
+  let h='';
+  for(let a=0;a<360;a+=15){const major=a%90===0,r1=major?30:a%45===0?36:40;
+    h+=`<line x1="0" y1="-44" x2="0" y2="-${r1+ (major?8:0)}" stroke="#efe6d2" stroke-opacity="${a%45===0?.9:.45}" stroke-width="${a%45===0?1.6:1}" transform="rotate(${a})"/>`}
+  [['N',0,'#d9604c'],['E',90,'#efe6d2'],['S',180,'#efe6d2'],['W',270,'#efe6d2']].forEach(([t,a,c])=>{
+    h+=`<g transform="rotate(${a})"><text y="-24" text-anchor="middle" font-size="13" font-weight="700" fill="${c}" font-family="Georgia,serif" transform="rotate(${-a} 0 -24)">${t}</text></g>`});
+  $('#dial').innerHTML=h;
+}
+function updateCompass(){$('#dial').setAttribute('transform',`rotate(${-(pano.getPov().heading||0)})`)}
 async function begin(){
   if(!S.online){$('#modal').classList.remove('hide');$('#msg').textContent='Connect to your multiworld first.';return}
   if(!await S.gready){toast('Google Maps failed to load. Check your API key and internet connection.');return}
   if(!pano){svs=new google.maps.StreetViewService();
-    pano=new google.maps.StreetViewPanorama($('#pano'),{addressControl:false,showRoadLabels:false,fullscreenControl:false,enableCloseButton:false})}
+    pano=new google.maps.StreetViewPanorama($('#pano'),{addressControl:false,showRoadLabels:false,fullscreenControl:false,enableCloseButton:false});
+    buildCompass();pano.addListener('pov_changed',updateCompass);pano.addListener('pano_changed',updateCompass);$('#compass').style.display='block'}
   render();newRound();
 }
 window.addEventListener('DOMContentLoaded',()=>{
