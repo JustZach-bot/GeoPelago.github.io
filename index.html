@@ -46,6 +46,11 @@ label{display:block;font-size:13px;margin:10px 0 3px;color:#c9bf9f}
 input[type=text],input[type=password]{width:100%;padding:8px;border:1px solid var(--sea);background:var(--ink);color:var(--sand);border-radius:4px}
 small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #msg{margin-top:10px;color:var(--bad);min-height:18px;font-size:14px}
+#notes{position:fixed;top:58px;right:14px;z-index:3500;display:flex;flex-direction:column;gap:8px;pointer-events:none}
+.note{background:var(--sand);color:var(--ink);border-left:6px solid #999;padding:10px 16px;border-radius:6px;min-width:230px;max-width:340px;box-shadow:0 6px 20px #0007;transition:opacity .7s,transform .7s}
+.note small{display:block;opacity:.7;font-size:12px}.note b{display:block;font-size:18px}.note span{font-size:13px}
+.note.progression{border-color:var(--flag)}.note.useful{border-color:var(--sea)}.note.trap{border-color:var(--bad)}
+.note.out{opacity:0;transform:translateX(20px)}
 #toast{position:fixed;bottom:260px;right:14px;z-index:3000;background:var(--bad);color:#fff;padding:8px 14px;border-radius:4px;display:none;max-width:300px}
 #loading{position:absolute;inset:0;z-index:850;background:var(--ink);display:none;align-items:center;justify-content:center;font-size:20px}
 #start{position:absolute;inset:0;z-index:850;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
@@ -79,6 +84,7 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
   </div>
 </div>
 <div id="toast"></div>
+<div id="notes"></div>
 
 <div id="modal">
  <div id="panel">
@@ -103,7 +109,7 @@ const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 
 // ---------- State ----------
 const $=s=>document.querySelector(s);
-const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0};
+const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0};
 
 // ---------- Helpers ----------
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2800)}
@@ -125,7 +131,7 @@ function connect(){
   const c=cfg();save({...c,pw:''});
   if(!c.server||!c.slot){$('#msg').textContent='Server, slot and game are required.';return}
   let url=c.server;if(!/^wss?:\/\//.test(url))url='wss://'+url;
-  $('#msg').textContent='';setStatus('Connecting…');
+  $('#msg').textContent='';setStatus('Connecting…');S.dp={};S.connectSent=false;
   if(S.ws)try{S.ws.close()}catch(e){}
   let ws;try{ws=new WebSocket(url)}catch(e){fail('Bad server address');return}
   S.ws=ws;
@@ -139,13 +145,20 @@ function handle(m,c){
   switch(m.cmd){
     case 'RoomInfo': send({cmd:'GetDataPackage',games:[GAME_NAME]});break;
     case 'DataPackage':{
-      const g=m.data.games[GAME_NAME];
+      Object.assign(S.dp,m.data.games);
+      if(S.connectSent)break; // extra packages requested after connecting
+      const g=S.dp[GAME_NAME];
       if(!g){fail(`Game "${GAME_NAME}" not found on this server.`);return}
       S.items={};for(const[n,i]of Object.entries(g.item_name_to_id))S.items[i]=n;
-      S.loc=g.location_name_to_id;
+      S.loc=g.location_name_to_id;S.locName={};for(const[n,i]of Object.entries(S.loc))S.locName[i]=n;
+      S.connectSent=true;
       send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:1,class:'Version'},items_handling:7,tags:[],slot_data:true});
       break}
     case 'Connected':{
+      S.slot=m.slot;S.slots=m.slot_info||{};S.players=m.players||[];
+      // Fetch item names for the other games so we can show what each check found.
+      const more=[...new Set(Object.values(S.slots).map(x=>x.game))].filter(g=>g&&!S.dp[g]);
+      if(more.length)send({cmd:'GetDataPackage',games:more});
       S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
       // The APWorld may send slot_data.countries (list of country names in this run's pool).
       const sc=m.slot_data&&m.slot_data.countries;
@@ -160,6 +173,7 @@ function handle(m,c){
       if(m.index===0)S.unlocked.clear();
       m.items.forEach(it=>{const n=(S.items[it.item]||'').replace(/\s*(unlock|key|pass)$/i,'').toLowerCase();const cc=NAME2CC.get(n);if(cc)S.unlocked.add(cc)});
       render();checkGoal();break;
+    case 'LocationInfo': (m.locations||[]).forEach(showFound);break;
     case 'RoomUpdate': if(m.checked_locations){m.checked_locations.forEach(i=>S.checked.add(i));render()}break;
   }
 }
@@ -167,12 +181,30 @@ function handle(m,c){
 function award(nameFn,max){
   if(!S.online)return null;
   for(let i=1;i<=max;i++){const n=nameFn(i),id=S.loc[n];
-    if(id!=null&&!S.checked.has(id)){S.checked.add(id);send({cmd:'LocationChecks',locations:[id]});return n}}
+    if(id!=null&&!S.checked.has(id)){S.checked.add(id);send({cmd:'LocationChecks',locations:[id]});send({cmd:'LocationScouts',locations:[id],create_as_hint:0});return n}}
   return null;
 }
 function countDone(nameFn,max){let n=0;for(let i=1;i<=max;i++){const id=S.loc[nameFn(i)];if(id!=null&&S.checked.has(id))n++}return n}
 
 // ---------- HUD ----------
+function itemNameFor(game,id){
+  const d=S.dp[game];if(!d)return null;
+  if(!d._rev){d._rev={};for(const[n,i]of Object.entries(d.item_name_to_id))d._rev[i]=n}
+  return d._rev[id]||null}
+function showFound(l){
+  const game=(S.slots[l.player]||{}).game;
+  const pl=S.players.find(x=>x.slot===l.player);
+  const who=l.player===S.slot?'you':(pl?(pl.alias||pl.name):'Player '+l.player);
+  const kind=l.flags&1?'progression':l.flags&4?'trap':l.flags&2?'useful':'filler';
+  const d=document.createElement('div');d.className='note '+kind;
+  const mk=(t,txt)=>{const e=document.createElement(t);e.textContent=txt;d.appendChild(e)};
+  mk('small',S.locName[l.location]||'Check');
+  mk('b',itemNameFor(game,l.item)||`Item #${l.item}`);
+  mk('span',`for ${who}`);
+  $('#notes').appendChild(d);
+  setTimeout(()=>d.classList.add('out'),5000);
+  setTimeout(()=>d.remove(),5800);
+}
 function checkGoal(){
   if(!S.online||S.goalSent)return;
   const need=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
