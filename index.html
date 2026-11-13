@@ -21,6 +21,9 @@ h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
 #topleft{position:absolute;top:10px;left:10px;z-index:900;display:flex;gap:10px;align-items:flex-start}
 #compass{display:none;width:92px;height:92px;flex:none;filter:drop-shadow(0 2px 6px #0008)}
 #hud{display:none;position:static;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+#goal{display:none;position:absolute;left:12px;bottom:12px;z-index:900;background:#14202bdd;border:1px solid var(--sea);padding:14px 18px;border-radius:6px;font-size:18px;min-width:300px}
+#goal b{display:block;font-size:22px;margin-bottom:8px}
+#goal .bar{height:7px;margin-top:4px}
 #hud b{display:block;font-size:15px;margin-bottom:6px}
 .row{display:flex;justify-content:space-between;gap:14px;line-height:1.6}
 .bar{height:4px;background:#0006;border-radius:2px;margin-bottom:3px}.bar i{display:block;height:100%;background:var(--flag);border-radius:2px}
@@ -53,7 +56,7 @@ small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #start{position:absolute;inset:0;z-index:850;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
 #start h2{font-size:32px;margin:0}
 code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
-@media(max-width:600px){#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
+@media(max-width:600px){#goal{min-width:0;font-size:14px;padding:10px 12px}#goal b{font-size:17px}#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
 </style>
 </head>
 <body>
@@ -73,6 +76,7 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
   </div>
   <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
   </div>
+  <div id="goal"><b>Goal</b><div id="goalBody"></div></div>
   <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
   <div id="dim"></div>
   <div id="result"></div>
@@ -227,8 +231,9 @@ function render(){
   const ct=S.totals.country||0;if(ct)h+=row('Correct country',doneIn('country'),ct);
   const pool=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
   const req=S.required||pool.length,un=pool.filter(cc=>S.unlocked.has(cc)).length;
-  h+=row('Countries unlocked',Math.min(un,req),req);
   $('#prog').innerHTML=h;
+  $('#goal').style.display=S.online?'block':'none';
+  $('#goalBody').innerHTML=row('Countries unlocked',Math.min(un,req),req);
 }
 
 // ---------- Geo ----------
