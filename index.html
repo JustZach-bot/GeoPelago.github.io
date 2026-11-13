@@ -1,0 +1,311 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>GeoPelago</title>
+<style>
+:root{--ink:#14202b;--slate:#1f3040;--sea:#2f6f7e;--sand:#efe6d2;--flag:#e8a33d;--bad:#d9604c;--ok:#5fb67a;font-family:Georgia,"Iowan Old Style",serif}
+*{box-sizing:border-box}html,body{height:100%;margin:0;background:var(--ink);color:var(--sand)}
+button,input{font:inherit}
+header{position:fixed;inset:0 0 auto 0;height:48px;display:flex;align-items:center;gap:12px;padding:0 14px;background:var(--slate);z-index:1000;border-bottom:2px solid var(--sea)}
+h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
+#status{font-size:13px;padding:3px 10px;border-radius:99px;background:#0003}
+#status.on{color:var(--ok)}#status.err{color:var(--bad)}
+.sp{flex:1}
+.btn{background:var(--flag);color:var(--ink);border:0;padding:7px 14px;border-radius:4px;font-weight:700;cursor:pointer}
+.btn.alt{background:transparent;color:var(--sand);border:1px solid var(--sea)}
+.btn:disabled{opacity:.4;cursor:not-allowed}
+#view{position:fixed;inset:48px 0 0 0;background:#000}
+#pano{position:absolute;inset:0}
+#hud{position:absolute;top:10px;left:10px;z-index:900;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+#hud b{display:block;font-size:15px;margin-bottom:6px}
+.row{display:flex;justify-content:space-between;gap:14px;line-height:1.6}
+.bar{height:4px;background:#0006;border-radius:2px;margin-bottom:3px}.bar i{display:block;height:100%;background:var(--flag);border-radius:2px}
+#hud details{margin-top:8px;border-top:1px solid #fff2;padding-top:6px}
+#hud summary{cursor:pointer}
+#clist{display:flex;flex-wrap:wrap;gap:4px;max-height:200px;overflow:auto;margin-top:6px;width:260px}
+.chip{font-size:11px;padding:2px 6px;border-radius:3px;background:#0005;color:#9aa}
+.chip.u{background:var(--sea);color:#fff}
+#gwrap{position:absolute;right:12px;bottom:12px;width:320px;height:230px;z-index:900;transition:width .18s,height .18s;border:2px solid var(--flag);border-radius:6px;background:var(--slate);display:none;flex-direction:column;overflow:hidden}
+#gwrap:hover,#gwrap.big{width:min(680px,92vw);height:min(470px,70vh)}
+#gmap{flex:1;min-height:0}
+#guessBtn{border-radius:0;width:100%}
+#result{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:950;background:var(--sand);color:var(--ink);padding:16px 22px;border-radius:8px;display:none;min-width:300px;max-width:92vw;box-shadow:0 8px 30px #0008}
+#result h2{margin:0 0 6px;font-size:26px}
+#result p{margin:4px 0}
+.chk{color:#1c6b3a;font-weight:700}
+#modal{position:fixed;inset:0;background:#000b;z-index:2000;display:flex;align-items:center;justify-content:center;padding:14px}
+#modal.hide{display:none}
+#panel{background:var(--slate);border:1px solid var(--sea);border-radius:8px;padding:20px;width:min(520px,100%);max-height:94vh;overflow:auto}
+#panel h2{margin:0 0 10px}
+label{display:block;font-size:13px;margin:10px 0 3px;color:#c9bf9f}
+input[type=text],input[type=password]{width:100%;padding:8px;border:1px solid var(--sea);background:var(--ink);color:var(--sand);border-radius:4px}
+small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
+#msg{margin-top:10px;color:var(--bad);min-height:18px;font-size:14px}
+#toast{position:fixed;bottom:260px;right:14px;z-index:3000;background:var(--bad);color:#fff;padding:8px 14px;border-radius:4px;display:none;max-width:300px}
+#loading{position:absolute;inset:0;z-index:850;background:var(--ink);display:none;align-items:center;justify-content:center;font-size:20px}
+#start{position:absolute;inset:0;z-index:850;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
+#start h2{font-size:32px;margin:0}
+code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
+@media(max-width:600px){#hud{min-width:0;font-size:12px}#gwrap{width:200px;height:150px}}
+</style>
+</head>
+<body>
+<header>
+  <h1>GeoPelago</h1>
+  <span id="status">Offline</span>
+  <span class="sp"></span>
+  <button class="btn alt" id="settingsBtn" style="color:var(--bad);border-color:var(--bad)">Connect</button>
+</header>
+
+<div id="view">
+  <div id="pano"></div>
+  <div id="hud">
+    <b id="roundLbl">Round 0</b>
+    <div id="prog"></div>
+    <details><summary id="cSum">Countries</summary><div id="clist"></div></details>
+  </div>
+  <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
+  <div id="result"></div>
+  <div id="loading">Finding a location…</div>
+  <div id="start">
+    <h2>Where in the world is your next check?</h2>
+    <div><button class="btn" id="startBtn">Start playing</button></div>
+  </div>
+</div>
+<div id="toast"></div>
+
+<div id="modal">
+ <div id="panel">
+  <h2>Connect to Archipelago</h2>
+  <label>Server</label><input type="text" id="server" placeholder="archipelago.gg:38281">
+  <label>Slot name</label><input type="text" id="slot">
+  <label>Password (optional)</label><input type="password" id="pw">
+  <p style="display:flex;gap:8px;margin-top:14px"><button class="btn" id="connectBtn">Connect</button><button class="btn alt" id="closeBtn">Close</button></p>
+  <div id="msg"></div>
+ </div>
+</div>
+
+<script>
+// ---------- Data ----------
+const RAW="us,United States,39.1,-94.6;ca,Canada,50.4,-104.6;mx,Mexico,20.6,-100.4;br,Brazil,-22.9,-47.1;ar,Argentina,-34.6,-60;cl,Chile,-33.4,-70.7;co,Colombia,4.7,-74.1;pe,Peru,-12,-77;ec,Ecuador,-0.2,-78.5;bo,Bolivia,-17.4,-66.2;uy,Uruguay,-34.9,-56.2;gb,United Kingdom,52.5,-1.9;ie,Ireland,53.3,-8;fr,France,46.6,2.3;es,Spain,40.2,-3.7;pt,Portugal,39.4,-8.2;it,Italy,43,12;de,Germany,51,10;nl,Netherlands,52.1,5.3;be,Belgium,50.6,4.6;ch,Switzerland,46.8,8.2;at,Austria,47.5,14.5;pl,Poland,52,19.5;cz,Czechia,49.8,15.5;sk,Slovakia,48.7,19.5;hu,Hungary,47.2,19.5;ro,Romania,45.9,25;bg,Bulgaria,42.7,25.4;gr,Greece,39,22;hr,Croatia,45.3,16;rs,Serbia,44,21;dk,Denmark,56,9.5;se,Sweden,59.5,15;no,Norway,60.5,9;fi,Finland,62,26;is,Iceland,64.5,-19.5;ee,Estonia,58.7,25.5;lv,Latvia,56.9,24.6;lt,Lithuania,55.3,23.9;ua,Ukraine,49,31;tr,Turkey,39,34;ru,Russia,56,38;mn,Mongolia,47.9,106.9;jp,Japan,36,138;kr,South Korea,36.5,127.9;tw,Taiwan,23.8,121;th,Thailand,15,101;id,Indonesia,-7.5,110.5;ph,Philippines,14.5,121;my,Malaysia,3.5,102;sg,Singapore,1.35,103.8;in,India,22,78;lk,Sri Lanka,7.5,80.7;il,Israel,31.5,34.9;jo,Jordan,31,36;ae,United Arab Emirates,24.5,54.5;za,South Africa,-30,25;ke,Kenya,-1,37.5;sn,Senegal,14.5,-15;bw,Botswana,-22,24;au,Australia,-33.5,147;nz,New Zealand,-43.5,171";
+const COUNTRIES=RAW.split(';').map(r=>{const p=r.split(',');return{cc:p[0],name:p[1],la:+p[2],ln:+p[3]}});
+const NAME2CC=new Map(COUNTRIES.map(c=>[c.name.toLowerCase(),c.cc]));
+const CC=Object.fromEntries(COUNTRIES.map(c=>[c.cc,c]));
+const BR=[{k:'0-1999',lo:0,hi:1999},{k:'2000-2999',lo:2000,hi:2999},{k:'3000-3999',lo:3000,hi:3999},{k:'4000-5000',lo:4000,hi:5000}];
+const PTS_N=25,CTRY_N=50;
+const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
+
+// ---------- State ----------
+const $=s=>document.querySelector(s);
+const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0};
+
+// ---------- Helpers ----------
+function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2800)}
+function setStatus(t,c){const e=$('#status');e.textContent=t;e.className=c||'';
+  const b=$('#settingsBtn'),col=S.online?'var(--ok)':'var(--bad)';
+  b.textContent=S.online?'Connected':'Connect';b.style.color=col;b.style.borderColor=col}
+const getSaved=()=>{try{return JSON.parse(localStorage.getItem('apgeo')||'{}')}catch(e){return{}}};
+function save(o){try{localStorage.setItem('apgeo',JSON.stringify(o))}catch(e){}}
+// Set GAME_NAME to the exact game name your APWorld registers with Archipelago.
+const GAME_NAME='GeoPelago';
+const GMAPS_KEY='AIzaSyDlJjVop1AwJcgmPNdZWSi-s7hfQBH8FUE';
+function cfg(){return{server:$('#server').value.trim(),slot:$('#slot').value.trim(),pw:$('#pw').value}}
+function km(a,b,c,d){const R=6371,r=x=>x*Math.PI/180,dl=r(c-a),dn=r(d-b);const h=Math.sin(dl/2)**2+Math.cos(r(a))*Math.cos(r(c))*Math.sin(dn/2)**2;return 2*R*Math.asin(Math.sqrt(h))}
+const scoreOf=d=>Math.min(5000,Math.round(5000*Math.exp(-d/1492.7)));
+const isUnlocked=cc=>S.unlocked.has(cc);
+
+// ---------- Archipelago client ----------
+function connect(){
+  const c=cfg();save({...c,pw:''});
+  if(!c.server||!c.slot){$('#msg').textContent='Server, slot and game are required.';return}
+  let url=c.server;if(!/^wss?:\/\//.test(url))url='wss://'+url;
+  $('#msg').textContent='';setStatus('Connecting…');
+  if(S.ws)try{S.ws.close()}catch(e){}
+  let ws;try{ws=new WebSocket(url)}catch(e){fail('Bad server address');return}
+  S.ws=ws;
+  ws.onmessage=e=>JSON.parse(e.data).forEach(m=>handle(m,c));
+  ws.onerror=()=>fail('Could not reach the server. If wss:// fails, try ws://host:port.');
+  ws.onclose=()=>{if(S.online){S.online=false;setStatus('Disconnected','err')}};
+}
+const send=m=>{if(S.ws&&S.ws.readyState===1)S.ws.send(JSON.stringify([m]))};
+function fail(t){S.online=false;setStatus('Offline','err');$('#msg').textContent=t;$('#modal').classList.remove('hide')}
+function handle(m,c){
+  switch(m.cmd){
+    case 'RoomInfo': send({cmd:'GetDataPackage',games:[GAME_NAME]});break;
+    case 'DataPackage':{
+      const g=m.data.games[GAME_NAME];
+      if(!g){fail(`Game "${GAME_NAME}" not found on this server.`);return}
+      S.items={};for(const[n,i]of Object.entries(g.item_name_to_id))S.items[i]=n;
+      S.loc=g.location_name_to_id;
+      send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:1,class:'Version'},items_handling:7,tags:[],slot_data:true});
+      break}
+    case 'Connected':{
+      S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
+      // The APWorld may send slot_data.countries (list of country names in this run's pool).
+      const sc=m.slot_data&&m.slot_data.countries;
+      S.pool=Array.isArray(sc)?new Set(sc.map(n=>NAME2CC.get(String(n).toLowerCase())).filter(Boolean)):null;
+      setStatus(`Connected as ${c.slot}`,'on');$('#modal').classList.add('hide');
+      const need=[];BR.forEach(b=>{for(let i=1;i<=PTS_N;i++)need.push(ptsName(b.k,i))});for(let i=1;i<=CTRY_N;i++)need.push(ctryName(i));
+      const miss=need.filter(n=>S.loc[n]==null).length;
+      if(miss)toast(`${miss} of 150 expected locations are missing from this game.`);
+      render();break}
+    case 'ConnectionRefused': fail('Refused: '+(m.errors||[]).join(', '));break;
+    case 'ReceivedItems':
+      if(m.index===0)S.unlocked.clear();
+      m.items.forEach(it=>{const n=(S.items[it.item]||'').replace(/\s*(unlock|key|pass)$/i,'').toLowerCase();const cc=NAME2CC.get(n);if(cc)S.unlocked.add(cc)});
+      render();checkGoal();break;
+    case 'RoomUpdate': if(m.checked_locations){m.checked_locations.forEach(i=>S.checked.add(i));render()}break;
+  }
+}
+// Sends the next unchecked location whose name matches the pattern. Returns its name or null.
+function award(nameFn,max){
+  if(!S.online)return null;
+  for(let i=1;i<=max;i++){const n=nameFn(i),id=S.loc[n];
+    if(id!=null&&!S.checked.has(id)){S.checked.add(id);send({cmd:'LocationChecks',locations:[id]});return n}}
+  return null;
+}
+function countDone(nameFn,max){let n=0;for(let i=1;i<=max;i++){const id=S.loc[nameFn(i)];if(id!=null&&S.checked.has(id))n++}return n}
+
+// ---------- HUD ----------
+function checkGoal(){
+  if(!S.online||S.goalSent)return;
+  const need=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
+  if(need.length&&need.every(cc=>S.unlocked.has(cc))){S.goalSent=true;send({cmd:'StatusUpdate',status:30});toast('All countries unlocked. Goal complete!')}
+}
+function render(){
+  styleLocks();
+  $('#roundLbl').textContent='Round '+S.round;
+  let h='';
+  BR.forEach(b=>{const n=countDone(i=>ptsName(b.k,i),PTS_N);h+=`<div class="row"><span>${b.k} pts</span><span>${n}/${PTS_N}</span></div><div class="bar"><i style="width:${n/PTS_N*100}%"></i></div>`});
+  const cn=countDone(ctryName,CTRY_N);
+  h+=`<div class="row"><span>Correct country</span><span>${cn}/${CTRY_N}</span></div><div class="bar"><i style="width:${cn/CTRY_N*100}%"></i></div>`;
+  $('#prog').innerHTML=h;
+  const tot=S.pool?S.pool.size:COUNTRIES.length,un=S.pool?[...S.pool].filter(cc=>S.unlocked.has(cc)).length:S.unlocked.size;
+  $('#cSum').textContent=`Countries unlocked: ${un}/${tot} (goal)`;
+  $('#clist').innerHTML=COUNTRIES.map(c=>`<span class="chip ${isUnlocked(c.cc)?'u':''}">${isUnlocked(c.cc)?'':'🔒 '}${c.name}</span>`).join('');
+}
+
+// ---------- Geo ----------
+async function reverse(lat,lng){
+  const wait=S.lastRev+1100-Date.now();if(wait>0)await new Promise(r=>setTimeout(r,wait));
+  S.lastRev=Date.now();
+  try{
+    const r=await fetch(`https://nominatim.openstreetmap.org/reverse?format=jsonv2&zoom=3&accept-language=en&lat=${lat}&lon=${lng}`);
+    const j=await r.json();
+    if(j.address&&j.address.country_code)return{cc:j.address.country_code,name:j.address.country};
+  }catch(e){}
+  return null;
+}
+let gm,gMarker,gLine,aMarker,svs,pano;const locks={};
+const ISO3={us:'USA',ca:'CAN',mx:'MEX',br:'BRA',ar:'ARG',cl:'CHL',co:'COL',pe:'PER',ec:'ECU',bo:'BOL',uy:'URY',gb:'GBR',ie:'IRL',fr:'FRA',es:'ESP',pt:'PRT',it:'ITA',de:'DEU',nl:'NLD',be:'BEL',ch:'CHE',at:'AUT',pl:'POL',cz:'CZE',sk:'SVK',hu:'HUN',ro:'ROU',bg:'BGR',gr:'GRC',hr:'HRV',rs:'SRB',dk:'DNK',se:'SWE',no:'NOR',fi:'FIN',is:'ISL',ee:'EST',lv:'LVA',lt:'LTU',ua:'UKR',tr:'TUR',ru:'RUS',mn:'MNG',jp:'JPN',kr:'KOR',tw:'TWN',th:'THA',id:'IDN',ph:'PHL',my:'MYS',sg:'SGP',in:'IND',lk:'LKA',il:'ISR',jo:'JOR',ae:'ARE',za:'ZAF',ke:'KEN',sn:'SEN',bw:'BWA',au:'AUS',nz:'NZL'};
+const ISO2={};for(const k in ISO3)ISO2[ISO3[k]]=k;
+function initGuessMap(){
+  gm=new google.maps.Map($('#gmap'),{center:{lat:20,lng:0},zoom:1,minZoom:1,mapTypeControl:false,streetViewControl:false,fullscreenControl:false,clickableIcons:false,gestureHandling:'greedy',draggableCursor:'crosshair'});
+  new ResizeObserver(()=>google.maps.event.trigger(gm,'resize')).observe($('#gmap'));
+  gm.addListener('click',onMapClick);
+  gm.data.addListener('click',onMapClick);
+  for(const c of COUNTRIES)locks[c.cc]=new google.maps.Marker({position:{lat:c.la,lng:c.ln},clickable:false,zIndex:5,icon:{path:google.maps.SymbolPath.CIRCLE,scale:0},label:{text:'🔒',fontSize:'15px'}});
+  styleLocks();
+  fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json').then(r=>r.json())
+    .then(j=>{gm.data.addGeoJson(j);styleLocks()})
+    .catch(()=>toast('Could not load country borders, so locked countries will not be greyed out.'));
+}
+// Grey out every country that cannot be guessed and show a lock on locked pool countries.
+function styleLocks(){
+  if(!gm)return;
+  gm.data.setStyle(f=>{const cc=ISO2[f.getId()];
+    return cc&&isUnlocked(cc)?{fillOpacity:0,strokeColor:'#2f6f7e',strokeOpacity:.4,strokeWeight:1,clickable:false}
+      :{fillColor:'#5b6670',fillOpacity:.65,strokeColor:'#3a4854',strokeWeight:1,clickable:true}});
+  for(const cc in locks)locks[cc].setMap(isUnlocked(cc)?null:gm);
+}
+async function onMapClick(e){
+  if(S.busy||!S.actual||$('#result').style.display==='block')return;
+  if(e.feature){const cc=ISO2[e.feature.getId()],n=e.feature.getProperty('name');
+    toast(cc?`🔒 ${n} is locked. Find its item in the multiworld first.`:`${n} is not part of this game.`);return}
+  S.busy=true;$('#guessBtn').textContent='Checking country…';
+  const lat=e.latLng.lat(),lng=((e.latLng.lng()+540)%360)-180;
+  const g=await reverse(lat,lng);
+  S.busy=false;
+  if(!g){toast('Pick a spot on land.');$('#guessBtn').textContent=S.guess?'Guess':'Place a guess';return}
+  if(!CC[g.cc]||!isUnlocked(g.cc)){
+    toast(`🔒 ${g.name} is locked. Find its item in the multiworld first.`);
+    $('#guessBtn').textContent=S.guess?'Guess':'Place a guess';return}
+  S.guess={lat,lng,cc:g.cc,name:g.name};
+  if(gMarker)gMarker.setPosition({lat,lng});else gMarker=new google.maps.Marker({position:{lat,lng},map:gm});
+  $('#guessBtn').disabled=false;$('#guessBtn').textContent=`Guess in ${g.name}`;
+}
+
+// ---------- Rounds ----------
+const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},(d,st)=>res(st==='OK'?d:null)));
+async function newRound(){
+  $('#result').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
+  $('#gwrap').classList.remove('big');$('#gwrap').style.display='flex';
+  for(const o of[gMarker,aMarker,gLine])if(o)o.setMap(null);gMarker=aMarker=gLine=null;
+  gm.setZoom(1);gm.setCenter({lat:20,lng:0});S.guess=null;S.actual=null;
+  const b=$('#guessBtn');b.disabled=true;b.textContent='Place a guess';
+  const pool=COUNTRIES;
+  for(let t=0;t<10;t++){
+    const c=pool[Math.floor(Math.random()*pool.length)];
+    const la=c.la+(Math.random()*2-1)*0.6,ln=c.ln+(Math.random()*2-1)*0.6;
+    const d=await findPano(la,ln);if(!d)continue;
+    const p=d.location.latLng;S.actual={lat:p.lat(),lng:p.lng(),cc:c.cc,name:c.name};
+    pano.setPano(d.location.pano);pano.setVisible(true);
+    break;
+  }
+  if(!S.actual){toast('Could not find imagery. Check your API key.');$('#loading').style.display='none';return}
+  S.round++;render();
+  const t=await reverse(S.actual.lat,S.actual.lng); // true country of the spot
+  if(t&&t.cc){S.actual.cc=t.cc;S.actual.name=t.name}
+  $('#loading').style.display='none';
+}
+function submit(){
+  if(!S.guess||!S.actual)return;
+  const a=S.actual,g=S.guess;
+  const d=km(a.lat,a.lng,g.lat,g.lng),sc=scoreOf(d);
+  const br=BR.find(x=>sc>=x.lo&&sc<=x.hi);
+  const out=[];
+  {
+    const n=award(i=>ptsName(br.k,i),PTS_N);
+    out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'');
+    if(g.cc===a.cc){const n2=award(ctryName,CTRY_N);out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}
+  }
+  const ok=g.cc===a.cc;
+  const r=$('#result');
+  r.innerHTML=`<h2>${sc} points</h2><p>${Math.round(d).toLocaleString()} km away. It was in <b>${a.name}</b>${ok?' ✔':', you guessed '+g.name+'.'}</p>${out.filter(Boolean).map(x=>`<p>${x}</p>`).join('')}<p><button class="btn" id="nextBtn">Next round</button></p>`;
+  r.style.display='block';$('#nextBtn').onclick=newRound;
+  $('#gwrap').classList.add('big');$('#guessBtn').disabled=true;
+  aMarker=new google.maps.Marker({position:{lat:a.lat,lng:a.lng},map:gm,zIndex:10,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:'#e8a33d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}});
+  gLine=new google.maps.Polyline({map:gm,path:[{lat:g.lat,lng:g.lng},{lat:a.lat,lng:a.lng}],strokeOpacity:0,
+    icons:[{icon:{path:'M 0,-1 0,1',strokeColor:'#d9604c',strokeOpacity:1,scale:3},offset:'0',repeat:'12px'}]});
+  setTimeout(()=>{const bd=new google.maps.LatLngBounds();bd.extend({lat:a.lat,lng:a.lng});bd.extend({lat:g.lat,lng:g.lng});gm.fitBounds(bd,70)},250);
+  render();
+}
+
+// ---------- Boot ----------
+function loadGoogle(key){return new Promise((res,rej)=>{
+  if(window.google&&google.maps)return res();
+  window.gm_authFailure=()=>toast('Google Maps rejected the API key.');
+  const s=document.createElement('script');s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
+  s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+async function begin(){
+  if(!S.online){$('#modal').classList.remove('hide');$('#msg').textContent='Connect to your multiworld first.';return}
+  if(!await S.gready){toast('Google Maps failed to load. Check your API key and internet connection.');return}
+  if(!pano){svs=new google.maps.StreetViewService();
+    pano=new google.maps.StreetViewPanorama($('#pano'),{addressControl:false,showRoadLabels:false,fullscreenControl:false,enableCloseButton:false})}
+  render();newRound();
+}
+window.addEventListener('DOMContentLoaded',()=>{
+  const s=getSaved();for(const k of['server','slot'])if(s[k])$('#'+k).value=s[k];
+  S.gready=loadGoogle(GMAPS_KEY).then(()=>{initGuessMap();return true}).catch(()=>false);
+  render();
+  $('#connectBtn').onclick=connect;
+  $('#closeBtn').onclick=()=>$('#modal').classList.add('hide');
+  $('#settingsBtn').onclick=()=>$('#modal').classList.remove('hide');
+  $('#startBtn').onclick=begin;
+  $('#guessBtn').onclick=submit;
+});
+</script>
+</body>
+</html>
