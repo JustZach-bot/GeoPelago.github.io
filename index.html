@@ -209,7 +209,8 @@ function initGuessMap(){
   for(const c of COUNTRIES)locks[c.cc]=new google.maps.Marker({position:{lat:c.la,lng:c.ln},clickable:false,zIndex:5,icon:{path:google.maps.SymbolPath.CIRCLE,scale:0},label:{text:'🔒',fontSize:'15px'}});
   styleLocks();
   fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json').then(r=>r.json())
-    .then(j=>{gm.data.addGeoJson(j);styleLocks()})
+    .then(j=>{j.features=j.features.filter(f=>f.id!=='ATA'&&(f.properties||{}).name!=='Antarctica'); // Antarctica reaches the pole, so it covers the whole map in Mercator
+      gm.data.addGeoJson(j);styleLocks()})
     .catch(()=>toast('Could not load country borders, so locked countries will not be greyed out.'));
 }
 // Grey out every country that cannot be guessed and show a lock on locked pool countries.
