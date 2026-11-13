@@ -31,9 +31,12 @@ h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
 #gwrap:hover,#gwrap.big{width:min(680px,92vw);height:min(470px,70vh)}
 #gmap{flex:1;min-height:0}
 #guessBtn{border-radius:0;width:100%}
-#result{position:absolute;top:70px;left:50%;transform:translateX(-50%);z-index:950;background:var(--sand);color:var(--ink);padding:16px 22px;border-radius:8px;display:none;min-width:300px;max-width:92vw;box-shadow:0 8px 30px #0008}
-#result h2{margin:0 0 6px;font-size:26px}
-#result p{margin:4px 0}
+#result{position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);z-index:970;background:var(--sand);color:var(--ink);padding:30px 44px;border-radius:12px;display:none;width:min(520px,92vw);text-align:center;box-shadow:0 12px 50px #000a}
+#result h2{margin:0 0 10px;font-size:56px;line-height:1}
+#result p{margin:8px 0;font-size:20px;line-height:1.35}
+#result .btn{font-size:20px;padding:12px 30px;margin-top:10px}
+#dim{position:absolute;inset:0;background:rgba(10,18,26,.55);z-index:940;display:none}
+#gwrap.big{z-index:960}
 .chk{color:#1c6b3a;font-weight:700}
 #modal{position:fixed;inset:0;background:#000b;z-index:2000;display:flex;align-items:center;justify-content:center;padding:14px}
 #modal.hide{display:none}
@@ -67,6 +70,7 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
     <details><summary id="cSum">Countries</summary><div id="clist"></div></details>
   </div>
   <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
+  <div id="dim"></div>
   <div id="result"></div>
   <div id="loading">Finding a location…</div>
   <div id="start">
@@ -247,7 +251,7 @@ async function onMapClick(e){
 // ---------- Rounds ----------
 const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},(d,st)=>res(st==='OK'?d:null)));
 async function newRound(){
-  $('#result').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
+  $('#result').style.display='none';$('#dim').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
   $('#gwrap').classList.remove('big');$('#gwrap').style.display='flex';
   for(const o of[gMarker,aMarker,gLine])if(o)o.setMap(null);gMarker=aMarker=gLine=null;
   gm.setZoom(1);gm.setCenter({lat:20,lng:0});S.guess=null;S.actual=null;
@@ -281,7 +285,7 @@ function submit(){
   const ok=g.cc===a.cc;
   const r=$('#result');
   r.innerHTML=`<h2>${sc} points</h2><p>${Math.round(d).toLocaleString()} km away. It was in <b>${a.name}</b>${ok?' ✔':', you guessed '+g.name+'.'}</p>${out.filter(Boolean).map(x=>`<p>${x}</p>`).join('')}<p><button class="btn" id="nextBtn">Next round</button></p>`;
-  r.style.display='block';$('#nextBtn').onclick=newRound;
+  r.style.display='block';$('#dim').style.display='block';$('#nextBtn').onclick=newRound;
   $('#gwrap').classList.add('big');$('#guessBtn').disabled=true;
   aMarker=new google.maps.Marker({position:{lat:a.lat,lng:a.lng},map:gm,zIndex:10,icon:{path:google.maps.SymbolPath.CIRCLE,scale:9,fillColor:'#e8a33d',fillOpacity:1,strokeColor:'#fff',strokeWeight:2}});
   gLine=new google.maps.Polyline({map:gm,path:[{lat:g.lat,lng:g.lng},{lat:a.lat,lng:a.lng}],strokeOpacity:0,
