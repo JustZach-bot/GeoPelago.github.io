@@ -1,1 +1,1 @@
-# GeoPelago.github.io
+Go to GeoPelago.github.io to play!
