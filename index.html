@@ -18,15 +18,12 @@ h1{font-size:18px;margin:0;font-weight:700;letter-spacing:.02em}
 .btn:disabled{opacity:.4;cursor:not-allowed}
 #view{position:fixed;inset:48px 0 0 0;background:#000}
 #pano{position:absolute;inset:0}
-#hud{position:absolute;top:10px;left:10px;z-index:900;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+#topleft{position:absolute;top:10px;left:10px;z-index:900;display:flex;gap:10px;align-items:flex-start}
+#compass{display:none;width:92px;height:92px;flex:none;filter:drop-shadow(0 2px 6px #0008)}
+#hud{display:none;position:static;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
 #hud b{display:block;font-size:15px;margin-bottom:6px}
 .row{display:flex;justify-content:space-between;gap:14px;line-height:1.6}
 .bar{height:4px;background:#0006;border-radius:2px;margin-bottom:3px}.bar i{display:block;height:100%;background:var(--flag);border-radius:2px}
-#hud details{margin-top:8px;border-top:1px solid #fff2;padding-top:6px}
-#hud summary{cursor:pointer}
-#clist{display:flex;flex-wrap:wrap;gap:4px;max-height:200px;overflow:auto;margin-top:6px;width:260px}
-.chip{font-size:11px;padding:2px 6px;border-radius:3px;background:#0005;color:#9aa}
-.chip.u{background:var(--sea);color:#fff}
 #gwrap{position:absolute;right:12px;bottom:12px;width:320px;height:230px;z-index:900;transition:width .18s,height .18s;border:2px solid var(--flag);border-radius:6px;background:var(--slate);display:none;flex-direction:column;overflow:hidden}
 #gwrap:hover,#gwrap.big{width:min(680px,92vw);height:min(470px,70vh)}
 #gmap{flex:1;min-height:0}
@@ -56,7 +53,7 @@ small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #start{position:absolute;inset:0;z-index:850;background:var(--ink);display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;text-align:center;padding:20px}
 #start h2{font-size:32px;margin:0}
 code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
-@media(max-width:600px){#hud{min-width:0;font-size:12px}#gwrap{width:200px;height:150px}}
+@media(max-width:600px){#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
 </style>
 </head>
 <body>
@@ -69,10 +66,12 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
 
 <div id="view">
   <div id="pano"></div>
+  <div id="topleft">
   <div id="hud">
-    <b id="roundLbl">Round 0</b>
+    <b id="roundLbl">Checks</b>
     <div id="prog"></div>
-    <details><summary id="cSum">Countries</summary><div id="clist"></div></details>
+  </div>
+  <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
   </div>
   <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
   <div id="dim"></div>
@@ -99,17 +98,19 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
 
 <script>
 // ---------- Data ----------
-const RAW="us,United States,39.1,-94.6;ca,Canada,50.4,-104.6;mx,Mexico,20.6,-100.4;br,Brazil,-22.9,-47.1;ar,Argentina,-34.6,-60;cl,Chile,-33.4,-70.7;co,Colombia,4.7,-74.1;pe,Peru,-12,-77;ec,Ecuador,-0.2,-78.5;bo,Bolivia,-17.4,-66.2;uy,Uruguay,-34.9,-56.2;gb,United Kingdom,52.5,-1.9;ie,Ireland,53.3,-8;fr,France,46.6,2.3;es,Spain,40.2,-3.7;pt,Portugal,39.4,-8.2;it,Italy,43,12;de,Germany,51,10;nl,Netherlands,52.1,5.3;be,Belgium,50.6,4.6;ch,Switzerland,46.8,8.2;at,Austria,47.5,14.5;pl,Poland,52,19.5;cz,Czechia,49.8,15.5;sk,Slovakia,48.7,19.5;hu,Hungary,47.2,19.5;ro,Romania,45.9,25;bg,Bulgaria,42.7,25.4;gr,Greece,39,22;hr,Croatia,45.3,16;rs,Serbia,44,21;dk,Denmark,56,9.5;se,Sweden,59.5,15;no,Norway,60.5,9;fi,Finland,62,26;is,Iceland,64.5,-19.5;ee,Estonia,58.7,25.5;lv,Latvia,56.9,24.6;lt,Lithuania,55.3,23.9;ua,Ukraine,49,31;tr,Turkey,39,34;ru,Russia,56,38;mn,Mongolia,47.9,106.9;jp,Japan,36,138;kr,South Korea,36.5,127.9;tw,Taiwan,23.8,121;th,Thailand,15,101;id,Indonesia,-7.5,110.5;ph,Philippines,14.5,121;my,Malaysia,3.5,102;sg,Singapore,1.35,103.8;in,India,22,78;lk,Sri Lanka,7.5,80.7;il,Israel,31.5,34.9;jo,Jordan,31,36;ae,United Arab Emirates,24.5,54.5;za,South Africa,-30,25;ke,Kenya,-1,37.5;sn,Senegal,14.5,-15;bw,Botswana,-22,24;au,Australia,-33.5,147;nz,New Zealand,-43.5,171";
-const COUNTRIES=RAW.split(';').map(r=>{const p=r.split(',');return{cc:p[0],name:p[1],la:+p[2],ln:+p[3]}});
+const RAW="af,AFG,Afghanistan,33.9,67.7;al,ALB,Albania,41.2,20.2;dz,DZA,Algeria,28.0,2.6;ad,AND,Andorra,42.5,1.6;ao,AGO,Angola,-12.3,17.5;ag,ATG,Antigua and Barbuda,17.1,-61.8;ar,ARG,Argentina,-35.0,-65.0;am,ARM,Armenia,40.2,45.0;au,AUS,Australia,-25.7,134.5;at,AUT,Austria,47.6,14.1;az,AZE,Azerbaijan,40.3,47.7;bs,BHS,Bahamas,24.7,-77.9;bh,BHR,Bahrain,26.0,50.55;bd,BGD,Bangladesh,23.8,90.3;bb,BRB,Barbados,13.2,-59.55;by,BLR,Belarus,53.7,28.0;be,BEL,Belgium,50.6,4.6;bz,BLZ,Belize,17.2,-88.7;bj,BEN,Benin,9.6,2.3;bt,BTN,Bhutan,27.4,90.4;bo,BOL,Bolivia,-16.7,-64.7;ba,BIH,Bosnia and Herzegovina,44.2,17.8;bw,BWA,Botswana,-22.2,23.8;br,BRA,Brazil,-10.8,-52.9;bn,BRN,Brunei,4.5,114.7;bg,BGR,Bulgaria,42.8,25.2;bf,BFA,Burkina Faso,12.2,-1.6;bi,BDI,Burundi,-3.4,29.9;kh,KHM,Cambodia,12.7,104.9;cm,CMR,Cameroon,5.7,12.7;ca,CAN,Canada,60.0,-100.0;cv,CPV,Cape Verde,15.1,-23.6;cf,CAF,Central African Republic,6.6,20.5;td,TCD,Chad,15.3,18.7;cl,CHL,Chile,-37.7,-71.4;cn,CHN,China,35.9,104.2;co,COL,Colombia,4.1,-72.9;km,COM,Comoros,-11.9,43.7;cr,CRI,Costa Rica,9.97,-84.2;hr,HRV,Croatia,45.0,15.5;cu,CUB,Cuba,21.6,-79.0;cy,CYP,Cyprus,35.0,33.2;cz,CZE,Czechia,49.8,15.5;cd,COD,Democratic Republic of the Congo,-2.9,23.6;dk,DNK,Denmark,56.0,10.0;dj,DJI,Djibouti,11.8,42.6;dm,DMA,Dominica,15.4,-61.35;do,DOM,Dominican Republic,18.9,-70.5;ec,ECU,Ecuador,-1.4,-78.4;eg,EGY,Egypt,26.5,29.9;sv,SLV,El Salvador,13.7,-88.9;gq,GNQ,Equatorial Guinea,1.6,10.5;er,ERI,Eritrea,15.4,38.9;ee,EST,Estonia,58.7,25.5;sz,SWZ,Eswatini,-26.5,31.5;et,ETH,Ethiopia,8.6,39.6;fj,FJI,Fiji,-17.8,178.0;fi,FIN,Finland,64.5,26.3;fr,FRA,France,46.6,2.5;ga,GAB,Gabon,-0.6,11.8;gm,GMB,Gambia,13.45,-15.4;ge,GEO,Georgia,42.2,43.5;de,DEU,Germany,51.1,10.4;gh,GHA,Ghana,7.9,-1.0;gr,GRC,Greece,39.1,22.9;gd,GRD,Grenada,12.1,-61.7;gt,GTM,Guatemala,15.7,-90.3;gn,GIN,Guinea,10.4,-10.9;gw,GNB,Guinea-Bissau,12.0,-14.9;gy,GUY,Guyana,4.8,-58.9;ht,HTI,Haiti,19.0,-72.7;hn,HND,Honduras,14.8,-86.6;hu,HUN,Hungary,47.2,19.4;is,ISL,Iceland,64.9,-18.6;in,IND,India,22.9,79.6;id,IDN,Indonesia,-2.5,117.2;ir,IRN,Iran,32.6,54.3;iq,IRQ,Iraq,33.0,43.7;ie,IRL,Ireland,53.2,-8.1;il,ISR,Israel,31.4,35.0;it,ITA,Italy,42.8,12.6;ci,CIV,Ivory Coast,7.6,-5.6;jm,JAM,Jamaica,18.1,-77.3;jp,JPN,Japan,36.6,138.2;jo,JOR,Jordan,31.2,36.8;kz,KAZ,Kazakhstan,48.2,67.3;ke,KEN,Kenya,0.5,37.8;ki,KIR,Kiribati,1.4,173.0;xk,XKX,Kosovo,42.6,20.9;kw,KWT,Kuwait,29.3,47.6;kg,KGZ,Kyrgyzstan,41.5,74.6;la,LAO,Laos,18.5,103.8;lv,LVA,Latvia,56.9,24.9;lb,LBN,Lebanon,33.9,35.9;ls,LSO,Lesotho,-29.6,28.2;lr,LBR,Liberia,6.5,-9.3;ly,LBY,Libya,27.0,17.2;li,LIE,Liechtenstein,47.15,9.55;lt,LTU,Lithuania,55.3,23.9;lu,LUX,Luxembourg,49.8,6.1;mg,MDG,Madagascar,-19.4,46.7;mw,MWI,Malawi,-13.2,34.3;my,MYS,Malaysia,4.0,102.2;mv,MDV,Maldives,3.2,73.2;ml,MLI,Mali,17.4,-3.5;mt,MLT,Malta,35.9,14.4;mh,MHL,Marshall Islands,7.1,171.2;mr,MRT,Mauritania,20.3,-10.4;mu,MUS,Mauritius,-20.3,57.6;mx,MEX,Mexico,23.9,-102.5;fm,FSM,Micronesia,6.9,158.2;md,MDA,Moldova,47.2,28.4;mc,MCO,Monaco,43.74,7.42;mn,MNG,Mongolia,46.9,103.0;me,MNE,Montenegro,42.8,19.3;ma,MAR,Morocco,31.8,-6.3;mz,MOZ,Mozambique,-17.3,35.5;mm,MMR,Myanmar,21.0,96.5;na,NAM,Namibia,-22.1,17.2;nr,NRU,Nauru,-0.52,166.93;np,NPL,Nepal,28.3,83.9;nl,NLD,Netherlands,52.2,5.5;nz,NZL,New Zealand,-41.8,172.5;ni,NIC,Nicaragua,12.9,-85.0;ne,NER,Niger,17.4,9.4;ng,NGA,Nigeria,9.6,8.1;kp,PRK,North Korea,40.2,127.2;mk,MKD,North Macedonia,41.6,21.7;no,NOR,Norway,62.0,10.0;om,OMN,Oman,20.6,56.1;pk,PAK,Pakistan,29.9,69.4;pw,PLW,Palau,7.5,134.6;ps,PSE,Palestine,31.9,35.2;pa,PAN,Panama,8.5,-80.1;pg,PNG,Papua New Guinea,-6.5,145.0;py,PRY,Paraguay,-23.2,-58.4;pe,PER,Peru,-9.2,-74.4;ph,PHL,Philippines,12.5,122.7;pl,POL,Poland,52.1,19.4;pt,PRT,Portugal,39.6,-8.0;qa,QAT,Qatar,25.3,51.2;cg,COG,Republic of the Congo,-0.7,15.2;ro,ROU,Romania,45.9,24.9;ru,RUS,Russia,61.5,96.7;rw,RWA,Rwanda,-2.0,29.9;kn,KNA,Saint Kitts and Nevis,17.35,-62.75;lc,LCA,Saint Lucia,13.9,-61.0;vc,VCT,Saint Vincent and the Grenadines,13.2,-61.2;ws,WSM,Samoa,-13.75,-172.1;sm,SMR,San Marino,43.94,12.46;st,STP,Sao Tome and Principe,0.3,6.7;sa,SAU,Saudi Arabia,24.1,45.0;sn,SEN,Senegal,14.5,-14.5;rs,SRB,Serbia,44.0,20.8;sc,SYC,Seychelles,-4.6,55.5;sl,SLE,Sierra Leone,8.5,-11.8;sg,SGP,Singapore,1.35,103.8;sk,SVK,Slovakia,48.7,19.5;si,SVN,Slovenia,46.1,14.8;sb,SLB,Solomon Islands,-9.0,160.0;so,SOM,Somalia,5.2,46.2;za,ZAF,South Africa,-29.0,24.7;kr,KOR,South Korea,36.5,127.9;ss,SSD,South Sudan,7.3,30.0;es,ESP,Spain,40.2,-3.6;lk,LKA,Sri Lanka,7.6,80.7;sd,SDN,Sudan,15.9,30.0;sr,SUR,Suriname,4.1,-55.9;se,SWE,Sweden,62.8,16.7;ch,CHE,Switzerland,46.8,8.2;sy,SYR,Syria,35.0,38.5;tw,TWN,Taiwan,23.7,121.0;tj,TJK,Tajikistan,38.9,71.0;tz,TZA,Tanzania,-6.3,34.8;th,THA,Thailand,15.1,101.0;tl,TLS,Timor-Leste,-8.8,125.9;tg,TGO,Togo,8.6,0.97;to,TON,Tonga,-20.4,-174.8;tt,TTO,Trinidad and Tobago,10.5,-61.3;tn,TUN,Tunisia,34.0,9.5;tr,TUR,Turkey,39.0,35.2;tm,TKM,Turkmenistan,39.1,59.4;tv,TUV,Tuvalu,-8.5,179.2;ug,UGA,Uganda,1.3,32.4;ua,UKR,Ukraine,49.0,31.4;ae,ARE,United Arab Emirates,23.9,54.3;gb,GBR,United Kingdom,54.0,-2.5;us,USA,United States,39.8,-98.6;uy,URY,Uruguay,-32.8,-56.0;uz,UZB,Uzbekistan,41.4,64.6;vu,VUT,Vanuatu,-16.0,167.7;va,VAT,Vatican City,41.9,12.45;ve,VEN,Venezuela,7.1,-66.2;vn,VNM,Vietnam,16.3,106.3;ye,YEM,Yemen,15.9,47.6;zm,ZMB,Zambia,-13.5,27.8;zw,ZWE,Zimbabwe,-19.0,29.9";
+const COUNTRIES=RAW.split(';').map(r=>{const p=r.split(',');return{cc:p[0],iso3:p[1],name:p[2],la:+p[3],ln:+p[4]}});
 const NAME2CC=new Map(COUNTRIES.map(c=>[c.name.toLowerCase(),c.cc]));
 const CC=Object.fromEntries(COUNTRIES.map(c=>[c.cc,c]));
+const ISO2={};COUNTRIES.forEach(c=>ISO2[c.iso3]=c.cc);
+// Places where official Street View exists. Rounds start near these; guesses can be anywhere.
+const SPAWN='us,39.1,-94.6;ca,50.4,-104.6;mx,20.6,-100.4;br,-22.9,-47.1;ar,-34.6,-60;cl,-33.4,-70.7;co,4.7,-74.1;pe,-12,-77;ec,-0.2,-78.5;bo,-17.4,-66.2;uy,-34.9,-56.2;gb,52.5,-1.9;ie,53.3,-8;fr,46.6,2.3;es,40.2,-3.7;pt,39.4,-8.2;it,43,12;de,51,10;nl,52.1,5.3;be,50.6,4.6;ch,46.8,8.2;at,47.5,14.5;pl,52,19.5;cz,49.8,15.5;sk,48.7,19.5;hu,47.2,19.5;ro,45.9,25;bg,42.7,25.4;gr,39,22;hr,45.3,16;rs,44,21;dk,56,9.5;se,59.5,15;no,60.5,9;fi,62,26;is,64.5,-19.5;ee,58.7,25.5;lv,56.9,24.6;lt,55.3,23.9;ua,49,31;tr,39,34;ru,56,38;mn,47.9,106.9;jp,36,138;kr,36.5,127.9;tw,23.8,121;th,15,101;id,-7.5,110.5;ph,14.5,121;my,3.5,102;sg,1.35,103.8;in,22,78;lk,7.5,80.7;il,31.5,34.9;jo,31,36;ae,24.5,54.5;za,-30,25;ke,-1,37.5;sn,14.5,-15;bw,-22,24;au,-33.5,147;nz,-43.5,171;us,40.7,-74.0;us,34.0,-118.2;us,41.9,-87.6;us,29.8,-95.4;us,47.6,-122.3;us,33.4,-112.0;us,39.7,-104.9;us,33.7,-84.4;us,44.9,-93.3;us,36.2,-86.8;us,38.6,-90.2;us,28.5,-81.4;us,35.2,-80.8;us,45.5,-122.7;ca,43.7,-79.4;ca,49.3,-123.1;ca,45.5,-73.6;ca,51.0,-114.1;ca,53.5,-113.5;ca,44.6,-63.6;mx,19.4,-99.1;mx,25.7,-100.3;mx,20.7,-103.4;mx,21.2,-86.8;br,-23.5,-46.6;br,-22.9,-43.2;br,-30.0,-51.2;br,-12.97,-38.5;br,-15.8,-47.9;br,-3.7,-38.5;ar,-34.6,-58.4;ar,-31.4,-64.2;ar,-32.9,-68.8;ar,-41.1,-71.3;au,-33.9,151.2;au,-37.8,145.0;au,-27.5,153.0;au,-31.95,115.86;au,-34.9,138.6;ru,55.75,37.6;ru,59.9,30.3;ru,56.8,60.6;ru,55.0,82.9;in,19.1,72.9;in,28.6,77.2;in,13.0,80.3;in,12.97,77.6;in,22.6,88.4;jp,35.7,139.7;jp,34.7,135.5;jp,43.06,141.35;jp,33.6,130.4;id,-6.2,106.8;id,-7.8,110.4;id,-8.65,115.2;th,13.75,100.5;th,18.8,98.99;za,-33.9,18.4;za,-26.2,28.0;za,-29.9,31.0;gb,51.5,-0.1;gb,53.5,-2.2;gb,55.95,-3.2;fr,48.9,2.35;fr,43.3,5.4;fr,45.75,4.85;fr,44.8,-0.6;es,41.4,2.2;es,37.4,-6.0;es,43.3,-1.98;it,45.5,9.2;it,40.85,14.25;it,41.9,12.5;de,52.5,13.4;de,48.1,11.6;de,50.1,8.7;tr,41.0,29.0;tr,39.9,32.85;tr,38.4,27.1;cl,-39.8,-73.2;cl,-23.65,-70.4;co,6.25,-75.6;co,3.45,-76.5;co,10.4,-75.5;pe,-16.4,-71.5;pe,-13.5,-72.0;nz,-36.85,174.76;nz,-41.3,174.78;nz,-43.5,172.6;kr,37.55,127.0;kr,35.15,129.05;ph,14.6,121.0;ph,10.3,123.9;ph,7.1,125.6;my,3.14,101.7;my,5.4,100.3;ke,-1.29,36.8;ke,-4.05,39.67;pl,50.06,19.9;pl,54.35,18.65;pl,51.1,17.0;ua,50.45,30.5;ua,49.8,24.0;se,57.7,11.97;se,65.6,22.15;se,55.6,13.0;no,59.9,10.75;no,69.65,18.95;no,60.4,5.3;fi,60.17,24.9;fi,65.0,25.5;ro,44.4,26.1;ro,46.77,23.6;gr,37.98,23.7;gr,40.6,22.95;al,41.33,19.82;ad,42.5,1.52;am,40.18,44.5;bd,23.8,90.4;bt,27.47,89.64;kh,11.56,104.9;cr,9.93,-84.08;do,18.5,-69.9;sz,-26.3,31.1;gh,5.6,-0.2;gt,14.6,-90.5;kg,42.87,74.6;la,17.97,102.6;ls,-29.3,27.5;lu,49.6,6.1;mt,35.9,14.5;mc,43.74,7.42;me,42.44,19.26;np,27.7,85.3;ng,6.5,3.4;mk,42.0,21.43;ps,31.9,35.2;pa,8.98,-79.5;py,-25.3,-57.6;qa,25.29,51.53;sm,43.94,12.45;si,46.05,14.5;tn,36.8,10.18;ug,0.35,32.58;zm,-15.4,28.3;mz,-25.97,32.57'.split(';').map(r=>{const p=r.split(',');return{cc:p[0],la:+p[1],ln:+p[2]}});
 const BR=[{k:'0-1999',lo:0,hi:1999},{k:'2000-2999',lo:2000,hi:2999},{k:'3000-3999',lo:3000,hi:3999},{k:'4000-5000',lo:4000,hi:5000}];
-const PTS_N=25,CTRY_N=50;
 const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 
 // ---------- State ----------
 const $=s=>document.querySelector(s);
-const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0};
+const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
 
 // ---------- Helpers ----------
 function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';clearTimeout(toast.t);toast.t=setTimeout(()=>e.style.display='none',2800)}
@@ -160,13 +161,18 @@ function handle(m,c){
       const more=[...new Set(Object.values(S.slots).map(x=>x.game))].filter(g=>g&&!S.dp[g]);
       if(more.length)send({cmd:'GetDataPackage',games:more});
       S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
-      // The APWorld may send slot_data.countries (list of country names in this run's pool).
-      const sc=m.slot_data&&m.slot_data.countries;
+      // Slot data from the APWorld: the country pool and how many countries finish the game.
+      const sd=m.slot_data||{},sc=sd.countries;
       S.pool=Array.isArray(sc)?new Set(sc.map(n=>NAME2CC.get(String(n).toLowerCase())).filter(Boolean)):null;
+      S.required=Math.max(0,parseInt(sd.countries_required)||0);
+      // Count the active checks in each group straight from this slot's location list.
+      S.catOf={};S.totals={};
+      [...(m.checked_locations||[]),...(m.missing_locations||[])].forEach(id=>{
+        const n=S.locName[id]||'',x=/^Points (\S+) #\d+$/.exec(n);
+        const k=x?x[1]:/^Correct Country #\d+$/.test(n)?'country':null;
+        if(k){S.catOf[id]=k;S.totals[k]=(S.totals[k]||0)+1}});
+      if(!Object.keys(S.totals).length)toast('No GeoPelago checks were found for this slot.');
       setStatus(`Connected as ${c.slot}`,'on');$('#modal').classList.add('hide');
-      const need=[];BR.forEach(b=>{for(let i=1;i<=PTS_N;i++)need.push(ptsName(b.k,i))});for(let i=1;i<=CTRY_N;i++)need.push(ctryName(i));
-      const miss=need.filter(n=>S.loc[n]==null).length;
-      if(miss)toast(`${miss} of 150 expected locations are missing from this game.`);
       render();break}
     case 'ConnectionRefused': fail('Refused: '+(m.errors||[]).join(', '));break;
     case 'ReceivedItems':
@@ -177,14 +183,15 @@ function handle(m,c){
     case 'RoomUpdate': if(m.checked_locations){m.checked_locations.forEach(i=>S.checked.add(i));render()}break;
   }
 }
-// Sends the next unchecked location whose name matches the pattern. Returns its name or null.
-function award(nameFn,max){
+// Sends the next unchecked location in a group ('country' or a points bracket). Returns its name or null.
+function award(k){
   if(!S.online)return null;
-  for(let i=1;i<=max;i++){const n=nameFn(i),id=S.loc[n];
+  const nameFn=k==='country'?ctryName:i=>ptsName(k,i);
+  for(let i=1;i<=(S.totals[k]||0);i++){const n=nameFn(i),id=S.loc[n];
     if(id!=null&&!S.checked.has(id)){S.checked.add(id);send({cmd:'LocationChecks',locations:[id]});send({cmd:'LocationScouts',locations:[id],create_as_hint:0});return n}}
   return null;
 }
-function countDone(nameFn,max){let n=0;for(let i=1;i<=max;i++){const id=S.loc[nameFn(i)];if(id!=null&&S.checked.has(id))n++}return n}
+const doneIn=k=>{let n=0;for(const id of S.checked)if(S.catOf[id]===k)n++;return n};
 
 // ---------- HUD ----------
 function itemNameFor(game,id){
@@ -202,25 +209,26 @@ function showFound(l){
   mk('b',itemNameFor(game,l.item)||`Item #${l.item}`);
   mk('span',`for ${who}`);
   $('#notes').appendChild(d);
-  setTimeout(()=>d.classList.add('out'),5000);
-  setTimeout(()=>d.remove(),5800);
+  setTimeout(()=>d.classList.add('out'),10000);
+  setTimeout(()=>d.remove(),10800);
 }
 function checkGoal(){
   if(!S.online||S.goalSent)return;
-  const need=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
-  if(need.length&&need.every(cc=>S.unlocked.has(cc))){S.goalSent=true;send({cmd:'StatusUpdate',status:30});toast('All countries unlocked. Goal complete!')}
+  const pool=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
+  const have=pool.filter(cc=>S.unlocked.has(cc)).length,need=S.required||pool.length;
+  if(need>0&&have>=need){S.goalSent=true;send({cmd:'StatusUpdate',status:30});toast('Enough countries unlocked. Goal complete!')}
 }
 function render(){
   styleLocks();
-  $('#roundLbl').textContent='Round '+S.round;
+  $('#hud').style.display=S.online?'block':'none';
+  const row=(label,n,t)=>`<div class="row"><span>${label}</span><span>${n}/${t}</span></div><div class="bar"><i style="width:${t?n/t*100:0}%"></i></div>`;
   let h='';
-  BR.forEach(b=>{const n=countDone(i=>ptsName(b.k,i),PTS_N);h+=`<div class="row"><span>${b.k} pts</span><span>${n}/${PTS_N}</span></div><div class="bar"><i style="width:${n/PTS_N*100}%"></i></div>`});
-  const cn=countDone(ctryName,CTRY_N);
-  h+=`<div class="row"><span>Correct country</span><span>${cn}/${CTRY_N}</span></div><div class="bar"><i style="width:${cn/CTRY_N*100}%"></i></div>`;
+  BR.forEach(b=>{const t=S.totals[b.k]||0;if(t)h+=row(`${b.k} pts`,doneIn(b.k),t)});
+  const ct=S.totals.country||0;if(ct)h+=row('Correct country',doneIn('country'),ct);
+  const pool=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
+  const req=S.required||pool.length,un=pool.filter(cc=>S.unlocked.has(cc)).length;
+  h+=row('Countries unlocked',Math.min(un,req),req);
   $('#prog').innerHTML=h;
-  const tot=S.pool?S.pool.size:COUNTRIES.length,un=S.pool?[...S.pool].filter(cc=>S.unlocked.has(cc)).length:S.unlocked.size;
-  $('#cSum').textContent=`Countries unlocked: ${un}/${tot} (goal)`;
-  $('#clist').innerHTML=COUNTRIES.map(c=>`<span class="chip ${isUnlocked(c.cc)?'u':''}">${isUnlocked(c.cc)?'':'🔒 '}${c.name}</span>`).join('');
 }
 
 // ---------- Geo ----------
@@ -235,21 +243,44 @@ async function reverse(lat,lng){
   return null;
 }
 let gm,gMarker,gLine,aMarker,svs,pano;const locks={};
-const ISO3={us:'USA',ca:'CAN',mx:'MEX',br:'BRA',ar:'ARG',cl:'CHL',co:'COL',pe:'PER',ec:'ECU',bo:'BOL',uy:'URY',gb:'GBR',ie:'IRL',fr:'FRA',es:'ESP',pt:'PRT',it:'ITA',de:'DEU',nl:'NLD',be:'BEL',ch:'CHE',at:'AUT',pl:'POL',cz:'CZE',sk:'SVK',hu:'HUN',ro:'ROU',bg:'BGR',gr:'GRC',hr:'HRV',rs:'SRB',dk:'DNK',se:'SWE',no:'NOR',fi:'FIN',is:'ISL',ee:'EST',lv:'LVA',lt:'LTU',ua:'UKR',tr:'TUR',ru:'RUS',mn:'MNG',jp:'JPN',kr:'KOR',tw:'TWN',th:'THA',id:'IDN',ph:'PHL',my:'MYS',sg:'SGP',in:'IND',lk:'LKA',il:'ISR',jo:'JOR',ae:'ARE',za:'ZAF',ke:'KEN',sn:'SEN',bw:'BWA',au:'AUS',nz:'NZL'};
-const ISO2={};for(const k in ISO3)ISO2[ISO3[k]]=k;
+const GEO_URLS=['https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_admin_0_countries.geojson',
+  'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_110m_admin_0_countries.geojson'];
+const ALIAS={SDS:'SSD',KOS:'XKX'}; // Natural Earth codes that differ from ISO
+function isoOf(p){for(const k of['ISO_A3_EH','ISO_A3','ADM0_A3']){let v=p[k];if(v&&v!=='-99'){v=ALIAS[v]||v;if(ISO2[v])return v}}return null}
+// Area-weighted centre of a ring, used to find the middle of a country's largest landmass.
+function ringCentre(r){let a=0,x=0,y=0;
+  for(let i=0;i<r.length-1;i++){const c=r[i][0]*r[i+1][1]-r[i+1][0]*r[i][1];a+=c;x+=(r[i][0]+r[i+1][0])*c;y+=(r[i][1]+r[i+1][1])*c}
+  a/=2;return a?{area:Math.abs(a),lng:x/(6*a),lat:y/(6*a)}:null}
+function centreOf(g){let best=null;
+  for(const poly of g.type==='Polygon'?[g.coordinates]:g.coordinates){const c=ringCentre(poly[0]);if(c&&(!best||c.area>best.area))best=c}
+  return best}
 function initGuessMap(){
   gm=new google.maps.Map($('#gmap'),{center:{lat:20,lng:0},zoom:1,minZoom:1,mapTypeControl:false,streetViewControl:false,fullscreenControl:false,clickableIcons:false,gestureHandling:'greedy',draggableCursor:'crosshair'});
   new ResizeObserver(()=>google.maps.event.trigger(gm,'resize')).observe($('#gmap'));
   gm.addListener('click',onMapClick);
   gm.data.addListener('click',onMapClick);
+  // One lock per country. They start at a rough position and move to the true centre once borders load.
   for(const c of COUNTRIES)locks[c.cc]=new google.maps.Marker({position:{lat:c.la,lng:c.ln},clickable:false,zIndex:5,icon:{path:google.maps.SymbolPath.CIRCLE,scale:0},label:{text:'🔒',fontSize:'15px'}});
   styleLocks();
-  fetch('https://cdn.jsdelivr.net/gh/johan/world.geo.json@master/countries.geo.json').then(r=>r.json())
-    .then(j=>{j.features=j.features.filter(f=>f.id!=='ATA'&&(f.properties||{}).name!=='Antarctica'); // Antarctica reaches the pole, so it covers the whole map in Mercator
-      gm.data.addGeoJson(j);styleLocks()})
-    .catch(()=>toast('Could not load country borders, so locked countries will not be greyed out.'));
+  loadBorders();
 }
-// Grey out every country that cannot be guessed and show a lock on locked pool countries.
+async function loadBorders(){
+  let j=null;
+  for(const u of GEO_URLS){try{const r=await fetch(u);if(r.ok){j=await r.json();break}}catch(e){}}
+  if(!j){toast('Could not load country borders, so locked countries will not be greyed out.');return}
+  const seen=new Set(),best={},feats=[];
+  for(const ft of j.features){
+    const p=ft.properties||{};
+    if(p.ADM0_A3==='ATA'||p.ISO_A3==='ATA')continue; // Antarctica reaches the pole and would cover the whole map
+    const iso=isoOf(p);
+    if(iso&&!seen.has(iso)){seen.add(iso);ft.id=iso;
+      const cc=ISO2[iso],c=centreOf(ft.geometry);
+      if(c&&locks[cc]&&(!best[cc]||c.area>best[cc].area)){best[cc]=c;locks[cc].setPosition({lat:c.lat,lng:c.lng})}}
+    else delete ft.id;
+    p.name=p.NAME||p.ADMIN||'This area';ft.properties=p;feats.push(ft)}
+  j.features=feats;gm.data.addGeoJson(j);styleLocks();
+}
+// Grey out every country that cannot be guessed and put a lock on it.
 function styleLocks(){
   if(!gm)return;
   gm.data.setStyle(f=>{const cc=ISO2[f.getId()];
@@ -273,7 +304,8 @@ async function onMapClick(e){
   S.busy=false;
   if(!g&&poly)g=poly;
   if(!g){toast('Pick a spot on land.');reset();return}
-  if(!CC[g.cc]||!isUnlocked(g.cc)){
+  if(!CC[g.cc]){toast(`${g.name} is not part of this game.`);reset();return}
+  if(!isUnlocked(g.cc)){
     toast(`🔒 ${g.name} is locked. Find its item in the multiworld first.`);reset();return}
   S.guess={lat,lng,cc:g.cc,name:g.name};
   if(gMarker)gMarker.setPosition({lat,lng});else gMarker=new google.maps.Marker({position:{lat,lng},map:gm});
@@ -281,23 +313,77 @@ async function onMapClick(e){
 }
 
 // ---------- Rounds ----------
-const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},(d,st)=>res(st==='OK'?d:null)));
+// Official Google coverage only: the copyright credits Google and the pano ID is the 22-character
+// kind (user-contributed photospheres have a contributor credit and much longer IDs).
+const isOfficial=d=>/google/i.test(d.copyright||'')&&String(d.location.pano).length===22;
+const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},
+  (d,st)=>res(st==='OK'&&isOfficial(d)?d:null)));
+// Variety: every spawn area is used once before any repeats, the same country is not picked twice
+// in a row, and places seen recently (kept between sessions) are skipped.
+const SMALL=new Set(['sg','be','nl','ch','at','ie','ee','lv','lt','sk','il','jo','ae','lk','tw','hr','dk','pt','cz','rs','bg','hu']);
+let lastCc=null,seen=[],bad=new Set(),cstat={};
+try{cstat=JSON.parse(localStorage.getItem('apgeo_cc')||'{}')}catch(e){}
+const KNOWN=new Set(SPAWN.map(c=>c.cc)); // countries expected to have official coverage
+function note(cc,hit){const t=cstat[cc]||(cstat[cc]={hit:0,miss:0});if(hit){t.hit++;t.miss=0}else t.miss++;
+  try{localStorage.setItem('apgeo_cc',JSON.stringify(cstat))}catch(e){}}
+// A country with no hit after several tries is treated as having no official coverage.
+const isDead=cc=>{const t=cstat[cc];return !!t&&t.hit===0&&t.miss>=(KNOWN.has(cc)?25:8)};
+try{seen=JSON.parse(localStorage.getItem('apgeo_seen')||'[]')}catch(e){}
+try{bad=new Set(JSON.parse(localStorage.getItem('apgeo_bad')||'[]'))}catch(e){}
+const keyOf=c=>c.la.toFixed(2)+','+c.ln.toFixed(2);
+function markBad(c){bad.add(keyOf(c));try{localStorage.setItem('apgeo_bad',JSON.stringify([...bad].slice(-8000)))}catch(e){}}
+// Spawn areas are grouped by country. A country is picked with weight sqrt(areas) so countries with
+// thousands of cities do not drown out the rest, then its areas are dealt from a shuffled bag.
+const byCc={},bags={};
+function indexSpawn(){for(const k in byCc)delete byCc[k];for(const k in bags)delete bags[k];
+  for(const c of SPAWN)(byCc[c.cc]||(byCc[c.cc]=[])).push(c)}
+function pickArea(){
+  let ccs=Object.keys(byCc).filter(k=>!isDead(k));if(!ccs.length)ccs=Object.keys(byCc);
+  if(ccs.length>1)ccs=ccs.filter(k=>k!==lastCc);
+  // countries not yet proven to have coverage are explored, but less often
+  const w=ccs.map(k=>Math.sqrt(byCc[k].length)*(KNOWN.has(k)||(cstat[k]&&cstat[k].hit)?1:0.2));let r=Math.random()*w.reduce((a,b)=>a+b,0),cc=ccs[0];
+  for(let i=0;i<ccs.length;i++){r-=w[i];if(r<=0){cc=ccs[i];break}}
+  let b=bags[cc];
+  if(!b||!b.length){b=bags[cc]=byCc[cc].slice();for(let i=b.length-1;i>0;i--){const k=Math.floor(Math.random()*(i+1));[b[i],b[k]]=[b[k],b[i]]}}
+  return b.pop()}
+function nextSpawn(){let c,n=0;do{c=pickArea()}while(c.city&&bad.has(keyOf(c))&&++n<80);return c}
+// Thousands of extra areas: every populated place in every country. Countries with no Street View
+// are found out by trying and then dropped; the result is remembered in the browser.
+const CITY_URLS=['https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_10m_populated_places_simple.geojson',
+  'https://cdn.jsdelivr.net/gh/nvkelso/natural-earth-vector@master/geojson/ne_50m_populated_places_simple.geojson'];
+async function loadCities(){
+  let j=null;
+  for(const u of CITY_URLS){try{const r=await fetch(u);if(r.ok){j=await r.json();break}}catch(e){}}
+  if(!j)return;
+  for(const f of j.features){
+    const p=f.properties||{},g=f.geometry;if(!g||!g.coordinates)continue;
+    const cc=ISO2[ALIAS[p.adm0_a3]||p.adm0_a3]||(p.iso_a2?String(p.iso_a2).toLowerCase():null);
+    if(!cc||!CC[cc])continue;
+    SPAWN.push({cc,la:g.coordinates[1],ln:g.coordinates[0],city:true})}
+  indexSpawn();
+}
+indexSpawn();
+const seenNearby=(id,la,ln)=>seen.some(x=>x.id===id)||seen.slice(-80).some(x=>km(x.la,x.ln,la,ln)<15);
+function remember(id,la,ln){seen.push({id,la,ln});if(seen.length>600)seen.shift();try{localStorage.setItem('apgeo_seen',JSON.stringify(seen))}catch(e){}}
 async function newRound(){
   $('#result').style.display='none';$('#dim').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
   $('#gwrap').classList.remove('big');$('#gwrap').style.display='flex';
   for(const o of[gMarker,aMarker,gLine])if(o)o.setMap(null);gMarker=aMarker=gLine=null;
   gm.setZoom(1);gm.setCenter({lat:20,lng:0});S.guess=null;S.actual=null;
   const b=$('#guessBtn');b.disabled=true;b.textContent='Place a guess';
-  const pool=COUNTRIES;
-  for(let t=0;t<10;t++){
-    const c=pool[Math.floor(Math.random()*pool.length)];
-    const la=c.la+(Math.random()*2-1)*0.6,ln=c.ln+(Math.random()*2-1)*0.6;
-    const d=await findPano(la,ln);if(!d)continue;
-    const p=d.location.latLng;S.actual={lat:p.lat(),lng:p.lng(),cc:c.cc,name:c.name};
-    pano.setPano(d.location.pano);pano.setVisible(true);
+  for(let t=0;t<40;t++){
+    const c=nextSpawn(),j=c.city?0.25:SMALL.has(c.cc)?0.35:1.0;
+    const la=c.la+(Math.random()*2-1)*j,ln=c.ln+(Math.random()*2-1)*j;
+    const d=await findPano(la,ln);if(!d){note(c.cc,false);if(c.city)markBad(c);continue}
+    note(c.cc,true);
+    const p=d.location.latLng,id=d.location.pano;
+    if(seenNearby(id,p.lat(),p.lng()))continue; // skip places shown recently
+    remember(id,p.lat(),p.lng());lastCc=c.cc;
+    S.actual={lat:p.lat(),lng:p.lng(),cc:c.cc,name:CC[c.cc].name};
+    pano.setPano(id);pano.setVisible(true);
     break;
   }
-  if(!S.actual){toast('Could not find imagery. Check your API key.');$('#loading').style.display='none';return}
+  if(!S.actual){toast('Could not find official Street View imagery. Check your API key and connection.');$('#loading').style.display='none';return}
   S.round++;render();
   const t=await reverse(S.actual.lat,S.actual.lng); // true country of the spot
   if(t&&t.cc){S.actual.cc=t.cc;S.actual.name=t.name}
@@ -310,9 +396,9 @@ function submit(){
   const br=BR.find(x=>sc>=x.lo&&sc<=x.hi);
   const out=[];
   {
-    const n=award(i=>ptsName(br.k,i),PTS_N);
+    const n=award(br.k);
     out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'');
-    if(g.cc===a.cc){const n2=award(ctryName,CTRY_N);out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}
+    if(g.cc===a.cc){const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}
   }
   const ok=g.cc===a.cc;
   const r=$('#result');
@@ -332,17 +418,28 @@ function loadGoogle(key){return new Promise((res,rej)=>{
   window.gm_authFailure=()=>toast('Google Maps rejected the API key.');
   const s=document.createElement('script');s.src=`https://maps.googleapis.com/maps/api/js?key=${encodeURIComponent(key)}`;
   s.onload=res;s.onerror=rej;document.head.appendChild(s)})}
+// Compass: the dial turns opposite to the view so N always points at true north.
+function buildCompass(){
+  let h='';
+  for(let a=0;a<360;a+=15){const major=a%90===0,r1=major?30:a%45===0?36:40;
+    h+=`<line x1="0" y1="-44" x2="0" y2="-${r1+ (major?8:0)}" stroke="#efe6d2" stroke-opacity="${a%45===0?.9:.45}" stroke-width="${a%45===0?1.6:1}" transform="rotate(${a})"/>`}
+  [['N',0,'#d9604c'],['E',90,'#efe6d2'],['S',180,'#efe6d2'],['W',270,'#efe6d2']].forEach(([t,a,c])=>{
+    h+=`<g transform="rotate(${a})"><text y="-24" text-anchor="middle" font-size="13" font-weight="700" fill="${c}" font-family="Georgia,serif" transform="rotate(${-a} 0 -24)">${t}</text></g>`});
+  $('#dial').innerHTML=h;
+}
+function updateCompass(){$('#dial').setAttribute('transform',`rotate(${-(pano.getPov().heading||0)})`)}
 async function begin(){
   if(!S.online){$('#modal').classList.remove('hide');$('#msg').textContent='Connect to your multiworld first.';return}
   if(!await S.gready){toast('Google Maps failed to load. Check your API key and internet connection.');return}
   if(!pano){svs=new google.maps.StreetViewService();
-    pano=new google.maps.StreetViewPanorama($('#pano'),{addressControl:false,showRoadLabels:false,fullscreenControl:false,enableCloseButton:false})}
+    pano=new google.maps.StreetViewPanorama($('#pano'),{addressControl:false,showRoadLabels:false,fullscreenControl:false,enableCloseButton:false});
+    buildCompass();pano.addListener('pov_changed',updateCompass);pano.addListener('pano_changed',updateCompass);$('#compass').style.display='block'}
   render();newRound();
 }
 window.addEventListener('DOMContentLoaded',()=>{
   const s=getSaved();for(const k of['server','slot'])if(s[k])$('#'+k).value=s[k];
   S.gready=loadGoogle(GMAPS_KEY).then(()=>{initGuessMap();return true}).catch(()=>false);
-  render();
+  render();loadCities();
   $('#connectBtn').onclick=connect;
   $('#closeBtn').onclick=()=>$('#modal').classList.add('hide');
   $('#settingsBtn').onclick=()=>$('#modal').classList.remove('hide');
