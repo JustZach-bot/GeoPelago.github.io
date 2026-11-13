@@ -152,7 +152,7 @@ function handle(m,c){
       S.items={};for(const[n,i]of Object.entries(g.item_name_to_id))S.items[i]=n;
       S.loc=g.location_name_to_id;S.locName={};for(const[n,i]of Object.entries(S.loc))S.locName[i]=n;
       S.connectSent=true;
-      send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:1,class:'Version'},items_handling:7,tags:[],slot_data:true});
+      send({cmd:'Connect',password:c.pw,game:GAME_NAME,name:c.slot,uuid:Math.random().toString(36).slice(2)+Date.now(),version:{major:0,minor:5,build:5,class:'Version'},items_handling:7,tags:[],slot_data:true});
       break}
     case 'Connected':{
       S.slot=m.slot;S.slots=m.slot_info||{};S.players=m.players||[];
@@ -281,7 +281,11 @@ async function onMapClick(e){
 }
 
 // ---------- Rounds ----------
-const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},(d,st)=>res(st==='OK'?d:null)));
+// Official Google coverage only: the copyright credits Google and the pano ID is the 22-character
+// kind (user-contributed photospheres have a contributor credit and much longer IDs).
+const isOfficial=d=>/google/i.test(d.copyright||'')&&String(d.location.pano).length===22;
+const findPano=(la,ln)=>new Promise(res=>svs.getPanorama({location:{lat:la,lng:ln},radius:50000,source:google.maps.StreetViewSource.OUTDOOR},
+  (d,st)=>res(st==='OK'&&isOfficial(d)?d:null)));
 async function newRound(){
   $('#result').style.display='none';$('#dim').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
   $('#gwrap').classList.remove('big');$('#gwrap').style.display='flex';
@@ -289,7 +293,7 @@ async function newRound(){
   gm.setZoom(1);gm.setCenter({lat:20,lng:0});S.guess=null;S.actual=null;
   const b=$('#guessBtn');b.disabled=true;b.textContent='Place a guess';
   const pool=COUNTRIES;
-  for(let t=0;t<10;t++){
+  for(let t=0;t<25;t++){
     const c=pool[Math.floor(Math.random()*pool.length)];
     const la=c.la+(Math.random()*2-1)*0.6,ln=c.ln+(Math.random()*2-1)*0.6;
     const d=await findPano(la,ln);if(!d)continue;
@@ -297,7 +301,7 @@ async function newRound(){
     pano.setPano(d.location.pano);pano.setVisible(true);
     break;
   }
-  if(!S.actual){toast('Could not find imagery. Check your API key.');$('#loading').style.display='none';return}
+  if(!S.actual){toast('Could not find official Street View imagery. Check your API key and connection.');$('#loading').style.display='none';return}
   S.round++;render();
   const t=await reverse(S.actual.lat,S.actual.lng); // true country of the spot
   if(t&&t.cc){S.actual.cc=t.cc;S.actual.name=t.name}
