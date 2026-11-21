@@ -37,8 +37,29 @@ h1 a:hover{text-decoration:underline}
 #compass{display:none;width:92px;height:92px;flex:none;filter:drop-shadow(0 2px 6px #0008)}
 /* Checks box: progress for each score bracket and the Correct Country checks. Hidden until connected. */
 #hud{display:none;position:static;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+/* Bottom-left corner: the Goal box and the text client sit side by side in this row. */
+#bottomleft{position:absolute;left:12px;bottom:12px;z-index:900;display:flex;align-items:flex-end;gap:10px}
+/* Text client: a scrolling log of Archipelago messages with a chat box underneath. Hidden until connected. */
+#chat{display:none;flex-direction:column;width:clamp(240px,30vw,420px);height:230px;background:#14202bdd;border:1px solid var(--sea);border-radius:6px;font-size:13px}
+#chat b{display:block;font-size:15px;padding:8px 12px 4px}
+#chatLog{flex:1;min-height:0;overflow-y:auto;padding:0 12px 6px;line-height:1.45;word-break:break-word}
+#chatLog div{margin:2px 0}
+/* Bottom row of the text client: the collapse button in the bottom-left corner, then the message box. */
+#chatBar{display:flex;border-top:1px solid var(--sea)}
+#chatIn{flex:1;min-width:0;border:0;background:#0004;color:var(--sand);padding:8px 12px;border-radius:0 0 6px 0;outline:none;font:inherit}
+.ctoggle{flex:none;width:36px;display:flex;align-items:center;justify-content:center;border:0;border-right:1px solid var(--sea);background:#0004;color:var(--sand);font-size:22px;line-height:1;cursor:pointer;border-radius:0 0 0 6px}
+.ctoggle:hover{color:var(--flag)}
+.ctoggle svg{width:20px;height:20px}
+/* Collapsed: only the button (showing a notepad icon) is left, sitting in the same corner. */
+#chat.min{width:auto;height:auto}
+#chat.min b,#chat.min #chatLog,#chat.min #chatIn{display:none}
+#chat.min #chatBar{border-top:0}
+#chat.min .ctoggle{width:42px;height:42px;border:0;border-radius:6px}
+/* Colours for parts of a message: progression, useful, trap and filler items; your name, other players, locations. */
+.c-prog{color:var(--flag)}.c-useful{color:#6fc3d4}.c-trap{color:var(--bad)}.c-filler{color:#aab}
+.c-me{color:var(--ok)}.c-pl{color:#e6d38a}.c-loc{color:#8fd0b0}
 /* Goal box (bottom left): countries unlocked out of the number needed to win. Hidden until connected. */
-#goal{display:none;position:absolute;left:12px;bottom:12px;z-index:900;background:#14202bdd;border:1px solid var(--sea);padding:14px 18px;border-radius:6px;font-size:18px;min-width:300px}
+#goal{display:none;background:#14202bdd;border:1px solid var(--sea);padding:14px 18px;border-radius:6px;font-size:18px;min-width:300px}
 #goal b{display:block;font-size:22px;margin-bottom:8px}
 #goal .bar{height:7px;margin-top:4px}
 #hud b{display:block;font-size:15px;margin-bottom:6px}
@@ -87,7 +108,7 @@ small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #start h2{font-size:32px;margin:0}
 code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
 /* Phones and narrow windows: shrink the boxes and compass so everything still fits. */
-@media(max-width:600px){#goal{min-width:0;font-size:14px;padding:10px 12px}#goal b{font-size:17px}#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
+@media(max-width:600px){#chat{display:none!important}#goal{min-width:0;font-size:14px;padding:10px 12px}#goal b{font-size:17px}#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
 </style>
 </head>
 <body>
@@ -114,7 +135,14 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
   <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
   </div>
 <!-- Goal box: filled in by render() with the countries-unlocked progress. -->
-  <div id="goal"><b>Goal</b><div id="goalBody"></div></div>
+  <div id="bottomleft">
+    <div id="goal"><b>Goal</b><div id="goalBody"></div></div>
+    <!-- Text client: shows the multiworld's messages (chat, items sent, hints, joins). Type here to chat or use commands like !hint. -->
+    <div id="chat"><b>Text Client</b><div id="chatLog"></div>
+      <!-- Bottom row: collapse button (shows a minus when open, a notepad icon when collapsed) and the message box. -->
+      <div id="chatBar"><button id="chatToggle" class="ctoggle" type="button" title="Collapse text client" aria-label="Collapse text client">&minus;</button><input id="chatIn" type="text" placeholder="Type a message or !command" maxlength="500" autocomplete="off"></div>
+    </div>
+  </div>
 <!-- Guess map (Google Map) plus the button that submits the guess. -->
   <div id="gwrap"><div id="gmap"></div><button class="btn" id="guessBtn" disabled>Place a guess</button></div>
 <!-- Dark overlay and score pop-up, both shown by submit() and hidden by newRound(). -->
@@ -190,6 +218,7 @@ function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';cl
 // Update the status text and turn the Connect button red ('Connect') or green ('Connected').
 function setStatus(t,c){const e=$('#status');e.textContent=t;e.className=c||'';
   const b=$('#settingsBtn'),col=S.online?'var(--ok)':'var(--bad)';
+  if(!S.online)for(const id of['#hud','#goal','#chat'])$(id).style.display='none'; // boxes only show while connected
   b.textContent=S.online?'Connected':'Connect';b.style.color=col;b.style.borderColor=col}
 // Remember the server and slot name between visits (the password is never saved).
 const getSaved=()=>{try{return JSON.parse(localStorage.getItem('apgeo')||'{}')}catch(e){return{}}};
@@ -259,6 +288,7 @@ function handle(m,c){
       const more=[...new Set(Object.values(S.slots).map(x=>x.game))].filter(g=>g&&!S.dp[g]);
       if(more.length)send({cmd:'GetDataPackage',games:more});
       S.complete=false;$('#complete').style.display='none'; // new login: clear any earlier finish
+      $('#chatLog').innerHTML='';                            // and the old text client log
       S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
       // Slot data from the APWorld: the country pool and how many countries finish the game.
       const sd=m.slot_data||{},sc=sd.countries;
@@ -282,6 +312,9 @@ function handle(m,c){
       render();checkGoal();break;
     // Answer to our scout request: shows the 'item found' pop-up.
     case 'LocationInfo': (m.locations||[]).forEach(showFound);break;
+    // Text client messages from the server (chat, items sent, hints, players joining and leaving).
+    case 'PrintJSON': chatLine(m.data||[]);break;
+    case 'Print': chatLine([{type:'text',text:m.text}]);break; // older plain-text form
     // Other checks were completed elsewhere (for example by a release): keep our list in sync.
     case 'RoomUpdate': if(m.checked_locations){m.checked_locations.forEach(i=>S.checked.add(i));render()}break;
   }
@@ -321,6 +354,42 @@ function showFound(l){
   setTimeout(()=>d.classList.add('out'),10000);
   setTimeout(()=>d.remove(),10800);
 }
+// Find a location's name from its ID in a given game's data package (cached after the first lookup).
+function locNameFor(game,id){
+  const d=S.dp[game];if(!d)return null;
+  if(!d._lrev){d._lrev={};for(const[n,i]of Object.entries(d.location_name_to_id))d._lrev[i]=n}
+  return d._lrev[id]||null}
+// Collapse or expand the text client. Open: the button shows a minus. Collapsed: only the button is left and it
+// shows a notepad icon; clicking it opens the client again.
+const NOTE_ICON='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="5" y="4" width="14" height="17" rx="2"/><path d="M9 2v4M15 2v4M8 10h8M8 14h8M8 18h5"/></svg>';
+function setChatMin(min){
+  $('#chat').classList.toggle('min',min);
+  const b=$('#chatToggle');
+  b.innerHTML=min?NOTE_ICON:'\u2212';
+  b.title=b.ariaLabel=min?'Open text client':'Collapse text client';
+  try{localStorage.setItem('apgeo_chatmin',min?'1':'0')}catch(e){}
+  if(!min){const l=$('#chatLog');l.scrollTop=l.scrollHeight} // jump to the newest message when opened
+}
+// Add one server message to the text client. The server sends a message as a list of parts (plain text, player,
+// item, location ...). Players, items and locations arrive as numbers, so they are turned back into names here.
+function chatLine(parts){
+  const row=document.createElement('div');
+  for(const x of parts){
+    const sp=document.createElement('span');let t=x.text==null?'':String(x.text),cls='';
+    const game=(S.slots[x.player]||{}).game,f=x.flags||0;
+    const flagCls=f&1?'c-prog':f&4?'c-trap':f&2?'c-useful':'c-filler';
+    if(x.type==='player_id'){const id=parseInt(t),pl=S.players.find(q=>q.slot===id);t=pl?(pl.alias||pl.name):t;cls=id===S.slot?'c-me':'c-pl'}
+    else if(x.type==='player_name')cls='c-pl';
+    else if(x.type==='item_id'){t=itemNameFor(game,parseInt(t))||t;cls=flagCls}
+    else if(x.type==='item_name')cls=flagCls;
+    else if(x.type==='location_id'){t=locNameFor(game,parseInt(t))||t;cls='c-loc'}
+    else if(x.type==='location_name')cls='c-loc';
+    sp.textContent=t;if(cls)sp.className=cls;row.appendChild(sp)}
+  const log=$('#chatLog'),atEnd=log.scrollTop+log.clientHeight>=log.scrollHeight-30; // keep scrolling only if already at the bottom
+  log.appendChild(row);
+  while(log.children.length>300)log.removeChild(log.firstChild); // keep the last 300 lines
+  if(atEnd)log.scrollTop=log.scrollHeight;
+}
 // If enough countries are unlocked: tell the server the goal is complete (status 30 = goal), then show the
 // 'Goal complete' pop-up over the game area and stop all further play (S.complete is checked by every round function).
 function checkGoal(){
@@ -346,6 +415,7 @@ function render(){
   const req=S.required||pool.length,un=pool.filter(cc=>S.unlocked.has(cc)).length;
   $('#prog').innerHTML=h;
   $('#goal').style.display=S.online?'block':'none';
+  $('#chat').style.display=S.online?'flex':'none';
   $('#goalBody').innerHTML=row('Countries unlocked',Math.min(un,req),req);
 }
 
@@ -609,6 +679,16 @@ window.addEventListener('DOMContentLoaded',()=>{
   S.gready=loadGoogle(GMAPS_KEY).then(()=>{initGuessMap();return true}).catch(()=>false);
   render();loadCities();
   $('#homeLink').href=HOME_URL;
+  // Collapse button on the text client. The last choice is remembered between visits.
+  let chatMin=false;try{chatMin=localStorage.getItem('apgeo_chatmin')==='1'}catch(e){}
+  setChatMin(chatMin);
+  $('#chatToggle').onclick=()=>setChatMin(!$('#chat').classList.contains('min'));
+  // Text client input: Enter sends what you typed to the server as chat (a message starting with ! is a server command).
+  $('#chatIn').addEventListener('keydown',e=>{
+    e.stopPropagation(); // keep typing from triggering Street View key controls
+    if(e.key!=='Enter')return;
+    const t=e.target.value.trim();if(t&&S.online)send({cmd:'Say',text:t});
+    e.target.value='';});
   $('#connectBtn').onclick=connect;
   $('#closeBtn').onclick=()=>$('#modal').classList.add('hide');
   $('#settingsBtn').onclick=()=>$('#modal').classList.remove('hide');
