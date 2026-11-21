@@ -196,6 +196,8 @@ const SPAWN='us,39.1,-94.6;ca,50.4,-104.6;mx,20.6,-100.4;br,-22.9,-47.1;ar,-34.6
 // The first 62 entries above are rough region centres, often far from any town. They are only kept as a backup
 // and are dropped as soon as the list of towns has loaded (see loadCities).
 SPAWN.slice(0,62).forEach(c=>c.rough=true);
+// Unlock items (lower-cased, without the word Unlock) -> the group of checks they open. The 0-1999 bracket is always open.
+const GATE_ITEMS={'2000-2999':'2000-2999','3000-3999':'3000-3999','4000-5000':'4000-5000','correct country':'country'};
 // The four score brackets. A round's score decides which bracket's next check is sent.
 const BR=[{k:'0-1999',lo:0,hi:1999},{k:'2000-2999',lo:2000,hi:2999},{k:'3000-3999',lo:3000,hi:3999},{k:'4000-5000',lo:4000,hi:5000}];
 // Location names. These must match the names the APWorld creates, e.g. 'Points 0-1999 #1' and 'Correct Country #1'.
@@ -209,7 +211,7 @@ const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 // required = countries needed to win, pool = countries in this game.
 // ---------- State ----------
 const $=s=>document.querySelector(s);
-const S={ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
+const S={gated:new Set(),gates:new Set(),ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
 
 // HELPERS
 // ---------- Helpers ----------
@@ -294,6 +296,8 @@ function handle(m,c){
       const sd=m.slot_data||{},sc=sd.countries;
       S.pool=Array.isArray(sc)?new Set(sc.map(n=>NAME2CC.get(String(n).toLowerCase())).filter(Boolean)):null;
       S.required=Math.max(0,parseInt(sd.countries_required)||0);
+      S.gated=new Set(Array.isArray(sd.gated_categories)?sd.gated_categories:[]); // groups that need an unlock item
+      S.gates=new Set(); // unlock items received so far (filled by ReceivedItems)
       // Count the active checks in each group straight from this slot's location list.
       S.catOf={};S.totals={};
       [...(m.checked_locations||[]),...(m.missing_locations||[])].forEach(id=>{
@@ -307,8 +311,10 @@ function handle(m,c){
     case 'ConnectionRefused': fail('Refused: '+(m.errors||[]).join(', '));break;
     // Items sent to us. Country items unlock that country on the map (a trailing ' Unlock', ' Key' or ' Pass' is ignored; the space matters, otherwise 'Turkey' would lose its 'key').
     case 'ReceivedItems':
-      if(m.index===0)S.unlocked.clear();
-      m.items.forEach(it=>{const n=(S.items[it.item]||'').replace(/\s+(unlock|key|pass)$/i,'').toLowerCase();const cc=NAME2CC.get(n);if(cc)S.unlocked.add(cc)});
+      if(m.index===0){S.unlocked.clear();S.gates.clear()}
+      m.items.forEach(it=>{const n=(S.items[it.item]||'').replace(/\s+(unlock|key|pass)$/i,'').toLowerCase();
+        const cc=NAME2CC.get(n);if(cc)S.unlocked.add(cc);
+        const gate=GATE_ITEMS[n];if(gate)S.gates.add(gate)}); // '2000-2999 Unlock' etc.
       render();checkGoal();break;
     // Answer to our scout request: shows the 'item found' pop-up.
     case 'LocationInfo': (m.locations||[]).forEach(showFound);break;
@@ -329,6 +335,8 @@ function award(k){
   return null;
 }
 // How many checks of one group ('country' or a bracket) are already done.
+// True if a group of checks ('country' or a bracket) needs an unlock item that has not arrived yet.
+const isGateLocked=k=>S.gated.has(k)&&!S.gates.has(k);
 const doneIn=k=>{let n=0;for(const id of S.checked)if(S.catOf[id]===k)n++;return n};
 
 // HUD (the boxes and pop-ups on screen)
@@ -409,8 +417,8 @@ function render(){
   $('#hud').style.display=S.online?'block':'none';
   const row=(label,n,t)=>`<div class="row"><span>${label}</span><span>${n}/${t}</span></div><div class="bar"><i style="width:${t?n/t*100:0}%"></i></div>`;
   let h='';
-  BR.forEach(b=>{const t=S.totals[b.k]||0;if(t)h+=row(`${b.k} pts`,doneIn(b.k),t)});
-  const ct=S.totals.country||0;if(ct)h+=row('Correct country',doneIn('country'),ct);
+  BR.forEach(b=>{const t=S.totals[b.k]||0;if(t)h+=row(`${isGateLocked(b.k)?'🔒 ':''}${b.k} pts`,doneIn(b.k),t)});
+  const ct=S.totals.country||0;if(ct)h+=row(`${isGateLocked('country')?'🔒 ':''}Correct country`,doneIn('country'),ct);
   const pool=S.pool?[...S.pool]:COUNTRIES.map(c=>c.cc);
   const req=S.required||pool.length,un=pool.filter(cc=>S.unlocked.has(cc)).length;
   $('#prog').innerHTML=h;
@@ -628,9 +636,13 @@ function submit(){
   const br=BR.find(x=>sc>=x.lo&&sc<=x.hi);
   const out=[];
   {
-    const n=award(br.k);
-    out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'');
-    if(g.cc===a.cc){const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}
+    // A check is only sent if its group is open. Locked groups show a reminder of the item that opens them.
+    if(isGateLocked(br.k))out.push(`🔒 ${br.k} checks are locked. Find the ${br.k} Unlock item.`);
+    else{const n=award(br.k);
+      out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'')}
+    if(g.cc===a.cc){
+      if(isGateLocked('country'))out.push('🔒 Correct Country checks are locked. Find the Correct Country Unlock item.');
+      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}}
   }
   const ok=g.cc===a.cc;
   const r=$('#result');
