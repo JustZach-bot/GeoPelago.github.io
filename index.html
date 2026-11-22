@@ -43,7 +43,7 @@ h1 a:hover{text-decoration:underline}
 /* Hint box: shows what the super powers found this round. Hidden until a power is used. */
 #hint{display:none;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
 #hint .h{margin:4px 0;line-height:1.35}
-/* Super powers: the Points tab and four power buttons, to the right of the compass. Hidden until connected. */
+/* Super powers: the PP tab and four power buttons, to the right of the compass. Hidden until connected. */
 #powers{display:none;gap:8px;align-items:flex-start}
 #pts{background:#14202bdd;border:1px solid var(--sea);border-radius:6px;padding:10px 14px;font-size:15px;font-weight:700;white-space:nowrap}
 #pts span{color:var(--flag)}
@@ -54,7 +54,7 @@ h1 a:hover{text-decoration:underline}
 .power .cost{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--flag);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px #0008}
 .power.poor .cost{background:var(--bad);color:#fff}
 .power:hover{border-color:var(--flag)}
-.power.poor{opacity:.6}                                 /* not enough points yet */
+.power.poor{opacity:.6}                                 /* not enough PP yet */
 .power.idle{opacity:.4;cursor:not-allowed}              /* no round in progress */
 .power.on{border-color:var(--flag);color:var(--flag);cursor:default}  /* already used this round */
 /* Tool tip with the power's name, shown when hovering a button. */
@@ -161,8 +161,8 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
     <div id="hint"><b>Hints</b><div id="hintBody"></div></div>
   </div>
   <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
-  <!-- Super powers, to the right of the compass: the Points tab, then one button per power (built by buildPowers()). -->
-  <div id="powers"><div id="pts">Points: <span id="ptsN">0</span></div><div id="pbtns"></div></div>
+  <!-- Super powers, to the right of the compass: the PP tab, then one button per power (built by buildPowers()). -->
+  <div id="powers"><div id="pts">PP: <span id="ptsN">0</span></div><div id="pbtns"></div></div>
   </div>
 <!-- Goal box: filled in by render() with the countries-unlocked progress. -->
   <div id="bottomleft">
@@ -321,7 +321,7 @@ function handle(m,c){
       if(more.length)send({cmd:'GetDataPackage',games:more});
       S.complete=false;$('#complete').style.display='none'; // new login: clear any earlier finish
       $('#chatLog').innerHTML='';                            // and the old text client log
-      try{S.spent=parseInt(localStorage.getItem(spentKey()))||0}catch(e){S.spent=0} // points already spent for this slot
+      try{S.spent=parseInt(localStorage.getItem(spentKey()))||0}catch(e){S.spent=0} // PP already spent for this slot
       S.used.clear();S.hints=[];renderHints();
       S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
       // Slot data from the APWorld: the country pool and how many countries finish the game.
@@ -373,8 +373,8 @@ const doneIn=k=>{let n=0;for(const id of S.checked)if(S.catOf[id]===k)n++;return
 
 // HUD (the boxes and pop-ups on screen)
 // ---------- SUPER POWERS ----------
-// Points are earned for every check found and spent on one-round hints.
-// Points per check, by group:
+// PP (power points) are earned for every check found and spent on one-round hints.
+// PP per check, by group:
 const VAL={'0-999':2,'1000-1999':3,'2000-2999':4,'3000-3999':5,'4000-5000':6,country:7};
 // Facts for the hints: country code, primary language, continent (AF Africa, AS Asia, EU Europe, NA North America,
 // SA South America, OC Oceania).
@@ -395,8 +395,8 @@ const POWERS=[
   {id:'letter',name:'Country Starting Letter',cost:15,icon:ICON_LETTER,hint:a=>CC[a.cc]?`The country's name starts with "${CC[a.cc].name[0].toUpperCase()}"`:null},
   {id:'cont',name:'Correct Continent',cost:20,icon:ICON_CONT,hint:a=>GEO_INFO[a.cc]?`Continent: ${GEO_INFO[a.cc].cont}`:null}
 ];
-// Points = points earned from every check found (counted from the server's list, so it survives reloads)
-// minus points already spent (S.spent, saved in this browser per server and slot name).
+// PP = PP earned from every check found (counted from the server's list, so it survives reloads)
+// minus PP already spent (S.spent, saved in this browser per server and slot name).
 const earned=()=>{let n=0;for(const k in VAL)n+=doneIn(k)*VAL[k];return n};
 const points=()=>Math.max(0,earned()-S.spent);
 const spentKey=()=>'apgeo_spent|'+cfg().server.toLowerCase()+'|'+cfg().slot;
@@ -407,7 +407,7 @@ function buildPowers(){
   $('#pbtns').innerHTML=POWERS.map(p=>`<button class="power idle" type="button" data-id="${p.id}" data-tip="${p.name}" aria-label="${p.name}, cost ${p.cost}">${p.icon}<span class="cost">${p.cost}</span></button>`).join('');
   document.querySelectorAll('.power').forEach(b=>b.onclick=()=>usePower(b.dataset.id));
 }
-// Refresh the Points tab and the look of each button (used this round / too expensive / no round running).
+// Refresh the PP tab and the look of each button (used this round / too expensive / no round running).
 function updatePowers(){
   $('#ptsN').textContent=points();
   document.querySelectorAll('.power').forEach(b=>{
@@ -422,12 +422,12 @@ function renderHints(){
   $('#hint').style.display=S.hints.length&&S.online?'block':'none';
   $('#hintBody').innerHTML=S.hints.map(h=>`<div class="h">${h}</div>`).join('');
 }
-// Use a power: it costs points, works for this round only, and adds its hint to the hint box.
+// Use a power: it costs PP, works for this round only, and adds its hint to the hint box.
 function usePower(id){
   const p=POWERS.find(x=>x.id===id);
   if(S.used.has(id))return;
   if(!roundActive())return toast('Powers can only be used during a round.');
-  if(points()<p.cost)return toast(`Not enough points: ${p.name} costs ${p.cost}.`);
+  if(points()<p.cost)return toast(`Not enough PP: ${p.name} costs ${p.cost} PP.`);
   const text=p.hint(S.actual);
   if(!text)return toast('No hint is available for this spot.'); // nothing is charged
   S.spent+=p.cost;
@@ -739,10 +739,10 @@ function submit(){
     // A check is only sent if its group is open. Locked groups show a reminder of the item that opens them.
     if(isGateLocked(br.k))out.push(`🔒 ${br.k} checks are locked. Find the ${br.k} Unlock item.`);
     else{const n=award(br.k);
-      out.push(n?`✔ Sent <span class="chk">${n}</span> (+${VAL[br.k]} points)`:S.online?`No free ${br.k} checks left`:'')}
+      out.push(n?`✔ Sent <span class="chk">${n}</span> (+${VAL[br.k]} PP)`:S.online?`No free ${br.k} checks left`:'')}
     if(g.cc===a.cc){
       if(isGateLocked('country'))out.push('🔒 Correct Country checks are locked. Find the Correct Country Unlock item.');
-      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span> (+${VAL.country} points)`:'No country checks left')}}
+      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span> (+${VAL.country} PP)`:'No country checks left')}}
   }
   const ok=g.cc===a.cc;
   const r=$('#result');
