@@ -32,11 +32,34 @@ h1 a:hover{text-decoration:underline}
 #view{position:fixed;inset:48px 0 0 0;background:#000}
 #pano{position:absolute;inset:0}
 /* Top-left corner: holds the Checks box and the compass side by side. */
-#topleft{position:absolute;top:10px;left:10px;z-index:900;display:flex;gap:10px;align-items:flex-start}
+#topleft{position:absolute;top:10px;left:10px;right:10px;z-index:900;display:flex;flex-wrap:wrap;gap:10px;align-items:flex-start;pointer-events:none}
+#topleft>*{pointer-events:auto}
 /* Compass (hidden until the first round starts). */
 #compass{display:none;width:92px;height:92px;flex:none;filter:drop-shadow(0 2px 6px #0008)}
 /* Checks box: progress for each score bracket and the Correct Country checks. Hidden until connected. */
 #hud{display:none;position:static;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+/* Left column of the top-left area: the Checks box with the hint box underneath it. */
+#leftcol{display:flex;flex-direction:column;gap:10px}
+/* Hint box: shows what the super powers found this round. Hidden until a power is used. */
+#hint{display:none;background:#14202bdd;border:1px solid var(--sea);padding:10px 12px;border-radius:6px;font-size:13px;min-width:210px}
+#hint .h{margin:4px 0;line-height:1.35}
+/* Super powers: the Points tab and four power buttons, to the right of the compass. Hidden until connected. */
+#powers{display:none;gap:8px;align-items:flex-start}
+#pts{background:#14202bdd;border:1px solid var(--sea);border-radius:6px;padding:10px 14px;font-size:15px;font-weight:700;white-space:nowrap}
+#pts span{color:var(--flag)}
+#pbtns{display:flex;gap:8px;flex-wrap:wrap}
+.power{position:relative;width:56px;height:52px;padding:0;justify-content:center;background:#14202bdd;border:1px solid var(--sea);border-radius:6px;color:var(--sand);display:flex;flex-direction:column;align-items:center;gap:3px;cursor:pointer;font-size:11px}
+.power svg{width:28px;height:28px}
+/* Point cost: a small badge on the button's top-right corner. It turns red while you cannot afford the power. */
+.power .cost{position:absolute;top:-7px;right:-7px;min-width:20px;height:20px;padding:0 5px;border-radius:10px;background:var(--flag);color:var(--ink);font-size:12px;font-weight:700;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px #0008}
+.power.poor .cost{background:var(--bad);color:#fff}
+.power:hover{border-color:var(--flag)}
+.power.poor{opacity:.6}                                 /* not enough points yet */
+.power.idle{opacity:.4;cursor:not-allowed}              /* no round in progress */
+.power.on{border-color:var(--flag);color:var(--flag);cursor:default}  /* already used this round */
+/* Tool tip with the power's name, shown when hovering a button. */
+.power::after{content:attr(data-tip);position:absolute;top:calc(100% + 6px);left:50%;transform:translateX(-50%);white-space:nowrap;background:var(--sand);color:var(--ink);padding:4px 9px;border-radius:4px;font-size:12px;font-weight:700;opacity:0;pointer-events:none;transition:opacity .12s;z-index:5}
+.power:hover::after{opacity:1}
 /* Bottom-left corner: the Goal box and the text client sit side by side in this row. */
 #bottomleft{position:absolute;left:12px;bottom:12px;z-index:900;display:flex;align-items:flex-end;gap:10px}
 /* Text client: a scrolling log of Archipelago messages with a chat box underneath. Hidden until connected. */
@@ -62,13 +85,14 @@ h1 a:hover{text-decoration:underline}
 #goal{display:none;background:#14202bdd;border:1px solid var(--sea);padding:14px 18px;border-radius:6px;font-size:18px;min-width:300px}
 #goal b{display:block;font-size:22px;margin-bottom:8px}
 #goal .bar{height:7px;margin-top:4px}
-#hud b{display:block;font-size:15px;margin-bottom:6px}
+#hud b,#hint b{display:block;font-size:15px;margin-bottom:6px}
 /* A progress row (label on the left, x/y on the right) and the thin progress bar under it. */
 .row{display:flex;justify-content:space-between;gap:14px;line-height:1.6}
 .bar{height:4px;background:#0006;border-radius:2px;margin-bottom:3px}.bar i{display:block;height:100%;background:var(--flag);border-radius:2px}
-/* Guess map panel (bottom right). Small while looking around, grows on hover and after a guess. */
+/* Guess map panel (bottom right). Small while looking around; grows while the mouse is over it (class .hov, which is
+   removed 2 seconds after the mouse leaves) and after a guess (class .big). */
 #gwrap{position:absolute;right:12px;bottom:12px;width:320px;height:230px;z-index:900;transition:width .18s,height .18s;border:2px solid var(--flag);border-radius:6px;background:var(--slate);display:none;flex-direction:column;overflow:hidden}
-#gwrap:hover,#gwrap.big{width:min(680px,92vw);height:min(470px,70vh)}
+#gwrap.hov,#gwrap.big{width:min(680px,92vw);height:min(470px,70vh)}
 #gmap{flex:1;min-height:0}
 #guessBtn{border-radius:0;width:100%}
 /* Score pop-up shown after a guess, centred on screen, with a dark overlay (#dim) behind it. */
@@ -108,7 +132,7 @@ small{color:#a9a68f;display:block;margin-top:4px;line-height:1.4}
 #start h2{font-size:32px;margin:0}
 code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
 /* Phones and narrow windows: shrink the boxes and compass so everything still fits. */
-@media(max-width:600px){#chat{display:none!important}#goal{min-width:0;font-size:14px;padding:10px 12px}#goal b{font-size:17px}#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
+@media(max-width:600px){.power{width:48px;height:46px}#pts{padding:8px 10px;font-size:13px}#chat{display:none!important}#goal{min-width:0;font-size:14px;padding:10px 12px}#goal b{font-size:17px}#hud{min-width:0;font-size:12px}#compass{width:64px;height:64px}#gwrap{width:200px;height:150px}}
 </style>
 </head>
 <body>
@@ -128,11 +152,17 @@ code{background:#0004;padding:1px 5px;border-radius:3px;font-size:12px}
   <div id="pano"></div>
 <!-- Checks box (filled in by render()) and the compass (drawn by buildCompass()). -->
   <div id="topleft">
-  <div id="hud">
-    <b id="roundLbl">Checks</b>
-    <div id="prog"></div>
+  <div id="leftcol">
+    <div id="hud">
+      <b id="roundLbl">Checks</b>
+      <div id="prog"></div>
+    </div>
+    <!-- Hint box under the Checks box: filled in by usePower() with what the powers found this round. -->
+    <div id="hint"><b>Hints</b><div id="hintBody"></div></div>
   </div>
   <div id="compass"><svg viewBox="-50 -50 100 100"><circle r="48" fill="#14202bdd" stroke="#2f6f7e" stroke-width="2"/><g id="dial"></g><path d="M0,-47 L-5,-37 L5,-37 Z" fill="#e8a33d"/><circle r="2.5" fill="#efe6d2"/></svg></div>
+  <!-- Super powers, to the right of the compass: the Points tab, then one button per power (built by buildPowers()). -->
+  <div id="powers"><div id="pts">Points: <span id="ptsN">0</span></div><div id="pbtns"></div></div>
   </div>
 <!-- Goal box: filled in by render() with the countries-unlocked progress. -->
   <div id="bottomleft">
@@ -196,11 +226,11 @@ const SPAWN='us,39.1,-94.6;ca,50.4,-104.6;mx,20.6,-100.4;br,-22.9,-47.1;ar,-34.6
 // The first 62 entries above are rough region centres, often far from any town. They are only kept as a backup
 // and are dropped as soon as the list of towns has loaded (see loadCities).
 SPAWN.slice(0,62).forEach(c=>c.rough=true);
-// Unlock items (lower-cased, without the word Unlock) -> the group of checks they open. The 0-1999 bracket is always open.
-const GATE_ITEMS={'2000-2999':'2000-2999','3000-3999':'3000-3999','4000-5000':'4000-5000','correct country':'country'};
+// Unlock items (lower-cased, without the word Unlock) -> the group of checks they open. Only the 0-999 bracket is always open.
+const GATE_ITEMS={'1000-1999':'1000-1999','2000-2999':'2000-2999','3000-3999':'3000-3999','4000-5000':'4000-5000','correct country':'country'};
 // The four score brackets. A round's score decides which bracket's next check is sent.
-const BR=[{k:'0-1999',lo:0,hi:1999},{k:'2000-2999',lo:2000,hi:2999},{k:'3000-3999',lo:3000,hi:3999},{k:'4000-5000',lo:4000,hi:5000}];
-// Location names. These must match the names the APWorld creates, e.g. 'Points 0-1999 #1' and 'Correct Country #1'.
+const BR=[{k:'0-999',lo:0,hi:999},{k:'1000-1999',lo:1000,hi:1999},{k:'2000-2999',lo:2000,hi:2999},{k:'3000-3999',lo:3000,hi:3999},{k:'4000-5000',lo:4000,hi:5000}];
+// Location names. These must match the names the APWorld creates, e.g. 'Points 0-999 #1' and 'Correct Country #1'.
 const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 
 // STATE
@@ -211,7 +241,7 @@ const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 // required = countries needed to win, pool = countries in this game.
 // ---------- State ----------
 const $=s=>document.querySelector(s);
-const S={gated:new Set(),gates:new Set(),ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
+const S={used:new Set(),hints:[],spent:0,gated:new Set(),gates:new Set(),ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
 
 // HELPERS
 // ---------- Helpers ----------
@@ -220,7 +250,7 @@ function toast(t){const e=$('#toast');e.textContent=t;e.style.display='block';cl
 // Update the status text and turn the Connect button red ('Connect') or green ('Connected').
 function setStatus(t,c){const e=$('#status');e.textContent=t;e.className=c||'';
   const b=$('#settingsBtn'),col=S.online?'var(--ok)':'var(--bad)';
-  if(!S.online)for(const id of['#hud','#goal','#chat'])$(id).style.display='none'; // boxes only show while connected
+  if(!S.online)for(const id of['#hud','#goal','#chat','#powers','#hint'])$(id).style.display='none'; // boxes only show while connected
   b.textContent=S.online?'Connected':'Connect';b.style.color=col;b.style.borderColor=col}
 // Remember the server and slot name between visits (the password is never saved).
 const getSaved=()=>{try{return JSON.parse(localStorage.getItem('apgeo')||'{}')}catch(e){return{}}};
@@ -291,6 +321,8 @@ function handle(m,c){
       if(more.length)send({cmd:'GetDataPackage',games:more});
       S.complete=false;$('#complete').style.display='none'; // new login: clear any earlier finish
       $('#chatLog').innerHTML='';                            // and the old text client log
+      try{S.spent=parseInt(localStorage.getItem(spentKey()))||0}catch(e){S.spent=0} // points already spent for this slot
+      S.used.clear();S.hints=[];renderHints();
       S.online=true;S.goalSent=false;S.checked=new Set(m.checked_locations||[]);S.unlocked.clear();
       // Slot data from the APWorld: the country pool and how many countries finish the game.
       const sd=m.slot_data||{},sc=sd.countries;
@@ -325,7 +357,7 @@ function handle(m,c){
     case 'RoomUpdate': if(m.checked_locations){m.checked_locations.forEach(i=>S.checked.add(i));render()}break;
   }
 }
-// award('0-1999') etc. also scouts the location so the pop-up can show what was found.
+// award('0-999') etc. also scouts the location so the pop-up can show what was found.
 // Sends the next unchecked location in a group ('country' or a points bracket). Returns its name or null.
 function award(k){
   if(!S.online)return null;
@@ -340,6 +372,70 @@ const isGateLocked=k=>S.gated.has(k)&&!S.gates.has(k);
 const doneIn=k=>{let n=0;for(const id of S.checked)if(S.catOf[id]===k)n++;return n};
 
 // HUD (the boxes and pop-ups on screen)
+// ---------- SUPER POWERS ----------
+// Points are earned for every check found and spent on one-round hints.
+// Points per check, by group:
+const VAL={'0-999':2,'1000-1999':3,'2000-2999':4,'3000-3999':5,'4000-5000':6,country:7};
+// Facts for the hints: country code, primary language, continent (AF Africa, AS Asia, EU Europe, NA North America,
+// SA South America, OC Oceania).
+const INFO_RAW="af,Pashto / Dari,AS;al,Albanian,EU;dz,Arabic,AF;ad,Catalan,EU;ao,Portuguese,AF;ag,English,NA;ar,Spanish,SA;am,Armenian,AS;au,English,OC;at,German,EU;az,Azerbaijani,AS;bs,English,NA;bh,Arabic,AS;bd,Bengali,AS;bb,English,NA;by,Russian / Belarusian,EU;be,Dutch / French,EU;bz,English,NA;bj,French,AF;bt,Dzongkha,AS;bo,Spanish,SA;ba,Bosnian,EU;bw,English / Setswana,AF;br,Portuguese,SA;bn,Malay,AS;bg,Bulgarian,EU;bf,French,AF;bi,Kirundi,AF;kh,Khmer,AS;cm,French / English,AF;ca,English / French,NA;cv,Portuguese,AF;cf,French / Sango,AF;td,French / Arabic,AF;cl,Spanish,SA;cn,Mandarin Chinese,AS;co,Spanish,SA;km,Comorian,AF;cr,Spanish,NA;hr,Croatian,EU;cu,Spanish,NA;cy,Greek,EU;cz,Czech,EU;cd,French,AF;dk,Danish,EU;dj,French / Arabic,AF;dm,English,NA;do,Spanish,NA;ec,Spanish,SA;eg,Arabic,AF;sv,Spanish,NA;gq,Spanish / French,AF;er,Tigrinya,AF;ee,Estonian,EU;sz,Swazi,AF;et,Amharic,AF;fj,English,OC;fi,Finnish,EU;fr,French,EU;ga,French,AF;gm,English,AF;ge,Georgian,AS;de,German,EU;gh,English,AF;gr,Greek,EU;gd,English,NA;gt,Spanish,NA;gn,French,AF;gw,Portuguese,AF;gy,English,SA;ht,Haitian Creole,NA;hn,Spanish,NA;hu,Hungarian,EU;is,Icelandic,EU;in,Hindi,AS;id,Indonesian,AS;ir,Persian,AS;iq,Arabic,AS;ie,English,EU;il,Hebrew,AS;it,Italian,EU;ci,French,AF;jm,English,NA;jp,Japanese,AS;jo,Arabic,AS;kz,Kazakh / Russian,AS;ke,Swahili / English,AF;ki,English,OC;xk,Albanian,EU;kw,Arabic,AS;kg,Kyrgyz / Russian,AS;la,Lao,AS;lv,Latvian,EU;lb,Arabic,AS;ls,Sesotho,AF;lr,English,AF;ly,Arabic,AF;li,German,EU;lt,Lithuanian,EU;lu,Luxembourgish,EU;mg,Malagasy,AF;mw,English,AF;my,Malay,AS;mv,Dhivehi,AS;ml,French,AF;mt,Maltese,EU;mh,Marshallese,OC;mr,Arabic,AF;mu,English,AF;mx,Spanish,NA;fm,English,OC;md,Romanian,EU;mc,French,EU;mn,Mongolian,AS;me,Montenegrin,EU;ma,Arabic,AF;mz,Portuguese,AF;mm,Burmese,AS;na,English,AF;nr,Nauruan,OC;np,Nepali,AS;nl,Dutch,EU;nz,English,OC;ni,Spanish,NA;ne,French,AF;ng,English,AF;kp,Korean,AS;mk,Macedonian,EU;no,Norwegian,EU;om,Arabic,AS;pk,Urdu,AS;pw,Palauan,OC;ps,Arabic,AS;pa,Spanish,NA;pg,Tok Pisin,OC;py,Spanish / Guarani,SA;pe,Spanish,SA;ph,Filipino / English,AS;pl,Polish,EU;pt,Portuguese,EU;qa,Arabic,AS;cg,French,AF;ro,Romanian,EU;ru,Russian,EU;rw,Kinyarwanda,AF;kn,English,NA;lc,English,NA;vc,English,NA;ws,Samoan,OC;sm,Italian,EU;st,Portuguese,AF;sa,Arabic,AS;sn,French,AF;rs,Serbian,EU;sc,Seychellois Creole,AF;sl,English,AF;sg,English,AS;sk,Slovak,EU;si,Slovene,EU;sb,English,OC;so,Somali,AF;za,Zulu / English,AF;kr,Korean,AS;ss,English,AF;es,Spanish,EU;lk,Sinhala,AS;sd,Arabic,AF;sr,Dutch,SA;se,Swedish,EU;ch,German,EU;sy,Arabic,AS;tw,Mandarin Chinese,AS;tj,Tajik,AS;tz,Swahili,AF;th,Thai,AS;tl,Tetum / Portuguese,AS;tg,French,AF;to,Tongan,OC;tt,English,NA;tn,Arabic,AF;tr,Turkish,AS;tm,Turkmen,AS;tv,Tuvaluan,OC;ug,English,AF;ua,Ukrainian,EU;ae,Arabic,AS;gb,English,EU;us,English,NA;uy,Spanish,SA;uz,Uzbek,AS;vu,Bislama,OC;va,Italian,EU;ve,Spanish,SA;vn,Vietnamese,AS;ye,Arabic,AS;zm,English,AF;zw,English,AF";
+const CONTINENTS={AF:'Africa',AS:'Asia',EU:'Europe',NA:'North America',SA:'South America',OC:'Oceania'};
+const GEO_INFO={};INFO_RAW.split(';').forEach(r=>{const p=r.split(',');GEO_INFO[p[0]]={lang:p[1],cont:CONTINENTS[p[2]]}});
+// Icons for the four buttons (drawn as SVG): a language symbol, a globe split into north and south halves,
+// the letter P, and a globe with the continents highlighted.
+const ICON_LANG='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7" stroke-linecap="round" stroke-linejoin="round"><path d="M3 5h9M7.5 3v2M5 5c0 3.5 2.5 6 6 7M11 5c-.5 3-3 6-7 8"/><path d="M12.5 21l4-10 4 10M14 17.5h5"/></svg>';
+const ICON_HEMI='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.7"><circle cx="12" cy="12" r="9"/><path d="M3 12a9 9 0 0 1 18 0z" fill="currentColor" fill-opacity=".45" stroke="none"/><path d="M3 12h18"/><path d="M12 3c-3 2.5-3 15.5 0 18M12 3c3 2.5 3 15.5 0 18" stroke-opacity=".5"/></svg>';
+const ICON_LETTER='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.9" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="3" width="18" height="18" rx="4"/><path d="M9.5 17.5V6.5h3.3a3.2 3.2 0 0 1 0 6.4H9.5"/></svg>';
+const ICON_CONT='<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><circle cx="12" cy="12" r="9"/><g fill="#e8a33d" stroke="none"><path d="M5.5 7.5c1.5-1 3-1.3 4-.7s.8 1.8-.2 2.5-1.2 1.8-2.2 2.2-2-1-1.9-2.4z"/><path d="M10 14c1-.4 2 .1 2.2 1.1s-.4 2.2-1 3.2-1.4-.3-1.5-1.5.1-2.4.3-2.8z"/><path d="M13.5 6.5c1-.6 2.3-.5 3.3.2s1.7 1.7 1.6 2.8-1.2 1.4-2 1.1-1.3 1.2-2 1.5-1-.6-.9-1.5-.8-1.7-.3-2.6z"/><path d="M17 15.5c.8-.2 1.5.3 1.4 1s-.9 1.1-1.5.9-.6-1.7.1-1.9z"/></g></svg>';
+// The powers. hint(a) gets the round's real location (a.cc country code, a.lat latitude) and returns the hint text,
+// or null if nothing is known about that spot.
+const POWERS=[
+  {id:'lang',name:'Primary Language',cost:5,icon:ICON_LANG,hint:a=>GEO_INFO[a.cc]?`Primary language: ${GEO_INFO[a.cc].lang}`:null},
+  {id:'hemi',name:'North or South Hemisphere',cost:10,icon:ICON_HEMI,hint:a=>`Hemisphere: ${a.lat>=0?'Northern':'Southern'}`},
+  {id:'letter',name:'Country Starting Letter',cost:15,icon:ICON_LETTER,hint:a=>CC[a.cc]?`The country's name starts with "${CC[a.cc].name[0].toUpperCase()}"`:null},
+  {id:'cont',name:'Correct Continent',cost:20,icon:ICON_CONT,hint:a=>GEO_INFO[a.cc]?`Continent: ${GEO_INFO[a.cc].cont}`:null}
+];
+// Points = points earned from every check found (counted from the server's list, so it survives reloads)
+// minus points already spent (S.spent, saved in this browser per server and slot name).
+const earned=()=>{let n=0;for(const k in VAL)n+=doneIn(k)*VAL[k];return n};
+const points=()=>Math.max(0,earned()-S.spent);
+const spentKey=()=>'apgeo_spent|'+cfg().server.toLowerCase()+'|'+cfg().slot;
+// Powers can only be used while a round is waiting for a guess.
+const roundActive=()=>!!S.actual&&!S.complete&&$('#result').style.display!=='block';
+// Build the four buttons once. The number in the top-right corner is the point cost; the tool tip is just the power's name.
+function buildPowers(){
+  $('#pbtns').innerHTML=POWERS.map(p=>`<button class="power idle" type="button" data-id="${p.id}" data-tip="${p.name}" aria-label="${p.name}, cost ${p.cost}">${p.icon}<span class="cost">${p.cost}</span></button>`).join('');
+  document.querySelectorAll('.power').forEach(b=>b.onclick=()=>usePower(b.dataset.id));
+}
+// Refresh the Points tab and the look of each button (used this round / too expensive / no round running).
+function updatePowers(){
+  $('#ptsN').textContent=points();
+  document.querySelectorAll('.power').forEach(b=>{
+    const p=POWERS.find(x=>x.id===b.dataset.id),on=S.used.has(p.id);
+    b.classList.toggle('on',on);
+    b.classList.toggle('idle',!on&&!roundActive());
+    b.classList.toggle('poor',!on&&roundActive()&&points()<p.cost);
+  });
+}
+// Show the hints found so far this round in the box under the Checks box.
+function renderHints(){
+  $('#hint').style.display=S.hints.length&&S.online?'block':'none';
+  $('#hintBody').innerHTML=S.hints.map(h=>`<div class="h">${h}</div>`).join('');
+}
+// Use a power: it costs points, works for this round only, and adds its hint to the hint box.
+function usePower(id){
+  const p=POWERS.find(x=>x.id===id);
+  if(S.used.has(id))return;
+  if(!roundActive())return toast('Powers can only be used during a round.');
+  if(points()<p.cost)return toast(`Not enough points: ${p.name} costs ${p.cost}.`);
+  const text=p.hint(S.actual);
+  if(!text)return toast('No hint is available for this spot.'); // nothing is charged
+  S.spent+=p.cost;
+  try{localStorage.setItem(spentKey(),String(S.spent))}catch(e){}
+  S.used.add(id);S.hints.push(text);
+  renderHints();render();
+}
+
 // ---------- HUD ----------
 // Find an item's name from its ID in a given game's data package (cached after the first lookup).
 function itemNameFor(game,id){
@@ -424,6 +520,8 @@ function render(){
   $('#prog').innerHTML=h;
   $('#goal').style.display=S.online?'block':'none';
   $('#chat').style.display=S.online?'flex':'none';
+  $('#powers').style.display=S.online?'flex':'none';
+  updatePowers();
   $('#goalBody').innerHTML=row('Countries unlocked',Math.min(un,req),req);
 }
 
@@ -602,6 +700,7 @@ function remember(id,la,ln){seen.push({id,la,ln});if(seen.length>600)seen.shift(
 async function newRound(){
   if(S.complete)return; // goal reached: no more rounds
   $('#result').style.display='none';$('#dim').style.display='none';$('#start').style.display='none';$('#loading').style.display='flex';
+  S.used.clear();S.hints=[];renderHints(); // powers work for one round only
   $('#gwrap').classList.remove('big');$('#gwrap').style.display='flex';
   for(const o of[gMarker,aMarker,gLine])if(o)o.setMap(null);gMarker=aMarker=gLine=null;
   gm.setZoom(1);gm.setCenter({lat:20,lng:0});S.guess=null;S.actual=null;
@@ -626,6 +725,7 @@ async function newRound(){
   const t=await reverse(S.actual.lat,S.actual.lng); // true country of the spot
   if(t&&t.cc){S.actual.cc=t.cc;S.actual.name=t.name}
   $('#loading').style.display='none';
+  updatePowers(); // the round is ready: powers become usable
 }
 // Player pressed Guess: score it, send the matching checks, show the score pop-up and draw the guess, the real spot and a dashed line on the map.
 function submit(){
@@ -639,10 +739,10 @@ function submit(){
     // A check is only sent if its group is open. Locked groups show a reminder of the item that opens them.
     if(isGateLocked(br.k))out.push(`🔒 ${br.k} checks are locked. Find the ${br.k} Unlock item.`);
     else{const n=award(br.k);
-      out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'')}
+      out.push(n?`✔ Sent <span class="chk">${n}</span> (+${VAL[br.k]} points)`:S.online?`No free ${br.k} checks left`:'')}
     if(g.cc===a.cc){
       if(isGateLocked('country'))out.push('🔒 Correct Country checks are locked. Find the Correct Country Unlock item.');
-      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left')}}
+      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span> (+${VAL.country} points)`:'No country checks left')}}
   }
   const ok=g.cc===a.cc;
   const r=$('#result');
@@ -691,6 +791,11 @@ window.addEventListener('DOMContentLoaded',()=>{
   S.gready=loadGoogle(GMAPS_KEY).then(()=>{initGuessMap();return true}).catch(()=>false);
   render();loadCities();
   $('#homeLink').href=HOME_URL;
+  buildPowers();
+  // Guess map: it grows while the mouse is over it and shrinks 2 seconds after the mouse leaves.
+  const gw=$('#gwrap');let shrinkTimer=null;
+  gw.addEventListener('pointerenter',()=>{clearTimeout(shrinkTimer);gw.classList.add('hov')});
+  gw.addEventListener('pointerleave',()=>{clearTimeout(shrinkTimer);shrinkTimer=setTimeout(()=>gw.classList.remove('hov'),2000)});
   // Collapse button on the text client. The last choice is remembered between visits.
   let chatMin=false;try{chatMin=localStorage.getItem('apgeo_chatmin')==='1'}catch(e){}
   setChatMin(chatMin);
