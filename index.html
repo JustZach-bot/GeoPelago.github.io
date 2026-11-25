@@ -241,7 +241,7 @@ const ptsName=(k,i)=>`Points ${k} #${i}`, ctryName=i=>`Correct Country #${i}`;
 // required = countries needed to win, pool = countries in this game.
 // ---------- State ----------
 const $=s=>document.querySelector(s);
-const S={used:new Set(),hints:[],spent:0,gated:new Set(),gates:new Set(),ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
+const S={pins:0,used:new Set(),hints:[],spent:0,gated:new Set(),gates:new Set(),ws:null,online:false,items:{},loc:{},checked:new Set(),unlocked:new Set(),round:0,actual:null,guess:null,busy:false,lastRev:0,dp:{},slots:{},players:[],locName:{},connectSent:false,slot:0,totals:{},catOf:{},required:0,pool:null};
 
 // HELPERS
 // ---------- Helpers ----------
@@ -343,8 +343,9 @@ function handle(m,c){
     case 'ConnectionRefused': fail('Refused: '+(m.errors||[]).join(', '));break;
     // Items sent to us. Country items unlock that country on the map (a trailing ' Unlock', ' Key' or ' Pass' is ignored; the space matters, otherwise 'Turkey' would lose its 'key').
     case 'ReceivedItems':
-      if(m.index===0){S.unlocked.clear();S.gates.clear()}
+      if(m.index===0){S.unlocked.clear();S.gates.clear();S.pins=0}
       m.items.forEach(it=>{const n=(S.items[it.item]||'').replace(/\s+(unlock|key|pass)$/i,'').toLowerCase();
+        if(n==='map pin')S.pins++; // each Map Pin is worth PIN_PP
         const cc=NAME2CC.get(n);if(cc)S.unlocked.add(cc);
         const gate=GATE_ITEMS[n];if(gate)S.gates.add(gate)}); // '2000-2999 Unlock' etc.
       render();checkGoal();break;
@@ -373,9 +374,10 @@ const doneIn=k=>{let n=0;for(const id of S.checked)if(S.catOf[id]===k)n++;return
 
 // HUD (the boxes and pop-ups on screen)
 // ---------- SUPER POWERS ----------
-// PP (power points) are earned for every check found and spent on one-round hints.
-// PP per check, by group:
-const VAL={'0-999':2,'1000-1999':3,'2000-2999':4,'3000-3999':5,'4000-5000':6,country:7};
+// PP (power points) are spent on one-round hints. There are only two ways to earn them:
+//   - every Map Pin item received gives PIN_PP,
+//   - every check section completed (all of a bracket's checks, or all Correct Country checks) gives SECTION_PP, once.
+const PIN_PP=2,SECTION_PP=10;
 // Facts for the hints: country code, primary language, continent (AF Africa, AS Asia, EU Europe, NA North America,
 // SA South America, OC Oceania).
 const INFO_RAW="af,Pashto / Dari,AS;al,Albanian,EU;dz,Arabic,AF;ad,Catalan,EU;ao,Portuguese,AF;ag,English,NA;ar,Spanish,SA;am,Armenian,AS;au,English,OC;at,German,EU;az,Azerbaijani,AS;bs,English,NA;bh,Arabic,AS;bd,Bengali,AS;bb,English,NA;by,Russian / Belarusian,EU;be,Dutch / French,EU;bz,English,NA;bj,French,AF;bt,Dzongkha,AS;bo,Spanish,SA;ba,Bosnian,EU;bw,English / Setswana,AF;br,Portuguese,SA;bn,Malay,AS;bg,Bulgarian,EU;bf,French,AF;bi,Kirundi,AF;kh,Khmer,AS;cm,French / English,AF;ca,English / French,NA;cv,Portuguese,AF;cf,French / Sango,AF;td,French / Arabic,AF;cl,Spanish,SA;cn,Mandarin Chinese,AS;co,Spanish,SA;km,Comorian,AF;cr,Spanish,NA;hr,Croatian,EU;cu,Spanish,NA;cy,Greek,EU;cz,Czech,EU;cd,French,AF;dk,Danish,EU;dj,French / Arabic,AF;dm,English,NA;do,Spanish,NA;ec,Spanish,SA;eg,Arabic,AF;sv,Spanish,NA;gq,Spanish / French,AF;er,Tigrinya,AF;ee,Estonian,EU;sz,Swazi,AF;et,Amharic,AF;fj,English,OC;fi,Finnish,EU;fr,French,EU;ga,French,AF;gm,English,AF;ge,Georgian,AS;de,German,EU;gh,English,AF;gr,Greek,EU;gd,English,NA;gt,Spanish,NA;gn,French,AF;gw,Portuguese,AF;gy,English,SA;ht,Haitian Creole,NA;hn,Spanish,NA;hu,Hungarian,EU;is,Icelandic,EU;in,Hindi,AS;id,Indonesian,AS;ir,Persian,AS;iq,Arabic,AS;ie,English,EU;il,Hebrew,AS;it,Italian,EU;ci,French,AF;jm,English,NA;jp,Japanese,AS;jo,Arabic,AS;kz,Kazakh / Russian,AS;ke,Swahili / English,AF;ki,English,OC;xk,Albanian,EU;kw,Arabic,AS;kg,Kyrgyz / Russian,AS;la,Lao,AS;lv,Latvian,EU;lb,Arabic,AS;ls,Sesotho,AF;lr,English,AF;ly,Arabic,AF;li,German,EU;lt,Lithuanian,EU;lu,Luxembourgish,EU;mg,Malagasy,AF;mw,English,AF;my,Malay,AS;mv,Dhivehi,AS;ml,French,AF;mt,Maltese,EU;mh,Marshallese,OC;mr,Arabic,AF;mu,English,AF;mx,Spanish,NA;fm,English,OC;md,Romanian,EU;mc,French,EU;mn,Mongolian,AS;me,Montenegrin,EU;ma,Arabic,AF;mz,Portuguese,AF;mm,Burmese,AS;na,English,AF;nr,Nauruan,OC;np,Nepali,AS;nl,Dutch,EU;nz,English,OC;ni,Spanish,NA;ne,French,AF;ng,English,AF;kp,Korean,AS;mk,Macedonian,EU;no,Norwegian,EU;om,Arabic,AS;pk,Urdu,AS;pw,Palauan,OC;ps,Arabic,AS;pa,Spanish,NA;pg,Tok Pisin,OC;py,Spanish / Guarani,SA;pe,Spanish,SA;ph,Filipino / English,AS;pl,Polish,EU;pt,Portuguese,EU;qa,Arabic,AS;cg,French,AF;ro,Romanian,EU;ru,Russian,EU;rw,Kinyarwanda,AF;kn,English,NA;lc,English,NA;vc,English,NA;ws,Samoan,OC;sm,Italian,EU;st,Portuguese,AF;sa,Arabic,AS;sn,French,AF;rs,Serbian,EU;sc,Seychellois Creole,AF;sl,English,AF;sg,English,AS;sk,Slovak,EU;si,Slovene,EU;sb,English,OC;so,Somali,AF;za,Zulu / English,AF;kr,Korean,AS;ss,English,AF;es,Spanish,EU;lk,Sinhala,AS;sd,Arabic,AF;sr,Dutch,SA;se,Swedish,EU;ch,German,EU;sy,Arabic,AS;tw,Mandarin Chinese,AS;tj,Tajik,AS;tz,Swahili,AF;th,Thai,AS;tl,Tetum / Portuguese,AS;tg,French,AF;to,Tongan,OC;tt,English,NA;tn,Arabic,AF;tr,Turkish,AS;tm,Turkmen,AS;tv,Tuvaluan,OC;ug,English,AF;ua,Ukrainian,EU;ae,Arabic,AS;gb,English,EU;us,English,NA;uy,Spanish,SA;uz,Uzbek,AS;vu,Bislama,OC;va,Italian,EU;ve,Spanish,SA;vn,Vietnamese,AS;ye,Arabic,AS;zm,English,AF;zw,English,AF";
@@ -395,9 +397,11 @@ const POWERS=[
   {id:'letter',name:'Country Starting Letter',cost:15,icon:ICON_LETTER,hint:a=>CC[a.cc]?`The country's name starts with "${CC[a.cc].name[0].toUpperCase()}"`:null},
   {id:'cont',name:'Correct Continent',cost:20,icon:ICON_CONT,hint:a=>GEO_INFO[a.cc]?`Continent: ${GEO_INFO[a.cc].cont}`:null}
 ];
-// PP = PP earned from every check found (counted from the server's list, so it survives reloads)
-// minus PP already spent (S.spent, saved in this browser per server and slot name).
-const earned=()=>{let n=0;for(const k in VAL)n+=doneIn(k)*VAL[k];return n};
+// PP = PP earned (Map Pins received + completed sections, both recounted from the server on every connect, so it
+// survives reloads) minus PP already spent (S.spent, saved in this browser per server and slot name).
+// Number of check sections (each score bracket and Correct Country) with every one of their checks done.
+const sectionsDone=()=>{let n=0;for(const k of[...BR.map(b=>b.k),'country']){const t=S.totals[k]||0;if(t&&doneIn(k)>=t)n++}return n};
+const earned=()=>S.pins*PIN_PP+sectionsDone()*SECTION_PP;
 const points=()=>Math.max(0,earned()-S.spent);
 const spentKey=()=>'apgeo_spent|'+cfg().server.toLowerCase()+'|'+cfg().slot;
 // Powers can only be used while a round is waiting for a guess.
@@ -738,11 +742,14 @@ function submit(){
   {
     // A check is only sent if its group is open. Locked groups show a reminder of the item that opens them.
     if(isGateLocked(br.k))out.push(`🔒 ${br.k} checks are locked. Find the ${br.k} Unlock item.`);
-    else{const n=award(br.k);
-      out.push(n?`✔ Sent <span class="chk">${n}</span> (+${VAL[br.k]} PP)`:S.online?`No free ${br.k} checks left`:'')}
+    else{const tot=S.totals[br.k]||0,was=doneIn(br.k)>=tot,n=award(br.k);
+      out.push(n?`✔ Sent <span class="chk">${n}</span>`:S.online?`No free ${br.k} checks left`:'');
+      if(n&&!was&&doneIn(br.k)>=tot)out.push(`🎉 All ${br.k} checks found: +${SECTION_PP} PP`)}
     if(g.cc===a.cc){
       if(isGateLocked('country'))out.push('🔒 Correct Country checks are locked. Find the Correct Country Unlock item.');
-      else{const n2=award('country');out.push(n2?`✔ Sent <span class="chk">${n2}</span> (+${VAL.country} PP)`:'No country checks left')}}
+      else{const tot=S.totals.country||0,was=doneIn('country')>=tot,n2=award('country');
+        out.push(n2?`✔ Sent <span class="chk">${n2}</span>`:'No country checks left');
+        if(n2&&!was&&doneIn('country')>=tot)out.push(`🎉 All Correct Country checks found: +${SECTION_PP} PP`)}}
   }
   const ok=g.cc===a.cc;
   const r=$('#result');
